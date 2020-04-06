@@ -1,0 +1,17 @@
+Cel projektu:
+  - Skonstruowanie urządzenia do pomiaru temperatury i wilgotności z wyświetlaczem 7-segmentowym
+
+Kluczowe elementy i technologie wykorzystane w projekcie:
+  - Czujnik temperatury i wilgotności DHT11
+  - Atmega8a z bootloaderem Arduino
+  - Wyświetlacz 7-segmentowy
+  - LEDy sygnalizujące prawidłowe wartości parametrów
+
+Działanie projektu:
+  Urządzenie to ma prostą zasadę działania - czujnik DHT11 wykonuje pomiary
+  temperatury i wilgotności i wysyła je za pomocą interfejsu szeregowego SingleWire
+  do mikrokontrolera. Za pomocą funkcji zawartych w bibliotece czujnika
+  można w prosty sposób uzyskać wartości temperatury i wilgotności. Wartości
+  te są przypisane do zmiennych i wyświetlone przy naciśnięciu przycisku.
+  Na urządzeniu znajdują się także dwie diody sygnalizujące prawidłową temperature
+  i wilgotność.

@@ -1,5 +1,5 @@
 Cel projektu:
-  - Zaprojektowanie i skonstrowanie przełącznika oświetlenia sterowanego przyciskiem pojemnościowym
+  - Skonstruowanie przełącznika oświetlenia sterowanego przyciskiem pojemnościowym
 
 Kluczowe elementy i technologie wykorzystane w projekcie:
   - przycisk pojemnościowy (kawałek folii aluminiowej)
