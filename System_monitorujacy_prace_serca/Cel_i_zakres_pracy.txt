@@ -1,0 +1,12 @@
+Na cel niniejszej pracy składają się trzy główne czynniki.
+Pierwszym z nich jest skonstruowanie urządzenia fonokardiograficznego – elektronicznego
+stetoskopu. Najważniejsze jego funkcje to: badanie ilości uderzeń serca na minutę (tętno),
+wykrywanie nieregularności w rytmie serca (arytmia) oraz detekcja patologicznych sygnałów
+akustycznych serca (szmery sercowe).
+
+Drugim czynnikiem jest stworzenie układu do zapisu danych i
+bezprzewodowej komunikacji między układem pomiarowym a oprogramowaniem
+komputerowym.
+
+Ostatnim elementem jest napisanie oprogramowania do analizy i wizualizacji
+danych takich jak: wartość tętna, występowanie arytmii oraz występowanie szmerów serca.
