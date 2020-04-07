@@ -1,0 +1,109 @@
+//THIS IS NOT THE FINAL CODE, STILL IN TESTING
+
+#include <Stepper.h>
+
+#define  STEPSREV    4096    // 64(fullsteps) * 64 (reduction ratio)
+#define  SPEED       4       // motor speed (RPM)
+
+#define  COIL_1X     6
+#define  COIL_2X     8
+#define  COIL_3X     7
+#define  COIL_4X     9
+
+#define  COIL_1Y     2
+#define  COIL_2Y     4
+#define  COIL_3Y     3
+#define  COIL_4Y     5
+
+
+// create the instances of the stepper class.
+Stepper leftMotor(STEPSREV, COIL_1X, COIL_2X, COIL_3X, COIL_4X);
+Stepper rightMotor(STEPSREV, COIL_1Y, COIL_2Y, COIL_3Y, COIL_4Y);
+
+int randomTurn = 0;
+
+//1000 steps is about 6,5cm //90deg turn is 21cm = 3230 steps  r=13,25cm
+//============== functions ====================================================
+
+//Check for inactivity and turn off the steppers coils to save battery.
+void TurnOffMotors(){
+
+    digitalWrite(COIL_1X, LOW);
+    digitalWrite(COIL_2X, LOW);
+    digitalWrite(COIL_3X, LOW);
+    digitalWrite(COIL_4X, LOW);
+
+    digitalWrite(COIL_1Y, LOW);
+    digitalWrite(COIL_2Y, LOW);
+    digitalWrite(COIL_3Y, LOW);
+    digitalWrite(COIL_4Y, LOW);
+
+}
+
+void MoveForward()
+{
+  leftMotor.step(-1);
+  rightMotor.step(-1);
+}
+
+void MoveBackward()
+{
+  for(int i=0; i<1500; i++)
+  {
+  leftMotor.step(1);
+  rightMotor.step(1);
+  }
+
+}
+
+void turnRight()
+{
+  MoveBackward();
+  leftMotor.step(-6250);
+}
+
+void turnLeft()
+{
+  MoveBackward();
+  rightMotor.step(-6250);
+}
+
+
+//=================== setup ===================================================
+void setup(){
+  leftMotor.setSpeed(SPEED);  // set the X motor speed.
+  rightMotor.setSpeed(SPEED);  // set the Y motor speed.
+
+  Serial.begin(115200);
+
+}
+
+//================= main loop =================================================
+void loop(){
+
+
+  while(1)
+  {
+
+    MoveForward();
+    int sensorRight = analogRead(0);
+    Serial.println(sensorRight);
+    if(analogRead(0)<900)
+    {
+      randomTurn = random(0,2);
+      switch(randomTurn)
+      {
+        case 0:
+        turnLeft();
+        break;
+
+        case 1:
+        turnRight();
+        break;
+      }
+    }
+  }
+//  delay(1000);
+//  turnRight();
+//  delay(10000);
+}
