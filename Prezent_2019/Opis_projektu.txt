@@ -5,6 +5,7 @@ Cel projektu:
 Kluczowe elementy i technologie wykorzystane w projekcie:
   - Głośnik 8 Ohm
   - Wzmacniacz audio klasy D
+  - Odbiornik Bluetooth
   - Atmega 328p
   - LEDy
   - 2szt wentylator 12V
