@@ -17,5 +17,5 @@ Działanie projektu:
   do pojemnika za pomocą układu ssącego ( na chwilę obecną testowane są różne
   rozwiązania tego układu). Robot wyposażony jest w czujniki optyczne, które
   informują go o przeszkodach. W pobliżu przeszkód robot wykonuje obrót 90st.
-  w losowym kierunku i kontynuuje sprzątanie. Robot zasilany jest przez akumulator Li-Ion 11,1V.
+  w losowym kierunku i kontynuuje sprzątanie. Robot zasilany jest przez akumulator Li-Ion 11.1V.
 
