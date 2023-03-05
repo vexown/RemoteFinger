@@ -4,9 +4,7 @@ add_executable(main_blinky
         main_blinky.c
         )
 
-target_compile_definitions(main_blinky PRIVATE
-        mainCREATE_SIMPLE_BLINKY_DEMO_ONLY=1
-        )
+target_compile_definitions(main_blinky PRIVATE)
 
 target_include_directories(main_blinky PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}

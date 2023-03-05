@@ -26,12 +26,6 @@
  */
 
 /******************************************************************************
- * This project provides two demo applications.  A simple blinky style project,
- * and a more comprehensive test and demo application.  The
- * mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting (defined in this file) is used to
- * select between the two.  The simply blinky demo is implemented and described
- * in main_blinky.c.  The more comprehensive test and demo application is
- * implemented and described in main_full.c.
  *
  * This file implements the code that is not demo specific, including the
  * hardware setup and standard FreeRTOS hook functions.
@@ -63,9 +57,6 @@
 #include "pico/multicore.h"
 #endif
 
-/* Set mainCREATE_SIMPLE_BLINKY_DEMO_ONLY to one to run the simple blinky demo,
-or 0 to run the more comprehensive test and demo application. */
-
 /*-----------------------------------------------------------*/
 
 /*
@@ -73,15 +64,7 @@ or 0 to run the more comprehensive test and demo application. */
  */
 static void prvSetupHardware( void );
 
-/*
- * main_blinky() is used when mainCREATE_SIMPLE_BLINKY_DEMO_ONLY is set to 1.
- * main_full() is used when mainCREATE_SIMPLE_BLINKY_DEMO_ONLY is set to 0.
- */
-#if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1
 extern void main_blinky( void );
-#else
-extern void main_full( void );
-#endif /* #if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 */
 
 /* Prototypes for the standard FreeRTOS callback/hook functions implemented
 within this file. */
@@ -94,22 +77,12 @@ void vApplicationTickHook( void );
 
 void vLaunch( void)
 {
-    /* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
-of this file. */
-#if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
-    {
-        main_blinky();
-    }
-#else
-    {
-        main_full();
-    }
-#endif
+    main_blinky();
 }
 
 int main( void )
 {
-    /* Configure the hardware ready to run the demo. */
+    /* Configure the Raspberry Pico hardware for blinky */
     prvSetupHardware();
     const char *rtos_name;
 #if ( portSUPPORT_SMP == 1 )
@@ -192,33 +165,5 @@ void vApplicationIdleHook( void )
 
 void vApplicationTickHook( void )
 {
-#if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 0
-    {
-        /* The full demo includes a software timer demo/test that requires
-        prodding periodically from the tick interrupt. */
-        #if (mainENABLE_TIMER_DEMO == 1)
-        vTimerPeriodicISRTests();
-        #endif
 
-        /* Call the periodic queue overwrite from ISR demo. */
-        #if (mainENABLE_QUEUE_OVERWRITE == 1)
-        vQueueOverwritePeriodicISRDemo();
-        #endif
-
-        /* Call the periodic event group from ISR demo. */
-        #if (mainENABLE_EVENT_GROUP == 1)
-        vPeriodicEventGroupsProcessing();
-        #endif
-
-        /* Call the code that uses a mutex from an ISR. */
-        #if (mainENABLE_INTERRUPT_SEMAPHORE == 1)
-        vInterruptSemaphorePeriodicTest();
-        #endif
-
-        /* Call the code that 'gives' a task notification from an ISR. */
-        #if (mainENABLE_TASK_NOTIFY == 1)
-        xNotifyTaskFromISR();
-        #endif
-    }
-#endif
 }

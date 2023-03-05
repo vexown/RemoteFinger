@@ -18,5 +18,14 @@ cmake ..
 echo Building...
 cmake --build .
 
+echo "Press 'X' to exit the script."
+
+while true; do
+  read -n 1 key  # wait for user to press a key
+  if [[ $key == "X" || $key == "x" ]]; then  # check if key pressed is 'X' or 'x'
+    echo "Exiting the script."
+    exit 0
+  fi
+done
 
 
