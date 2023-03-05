@@ -1,11 +1,15 @@
-# Note that this file can be used as a top level CMakeLists.txt to build all the Demos (it includes
-# them all, but they are usable in their own right, which is why no common work is done here)
 
 cmake_minimum_required(VERSION 3.13)
 
 # Pull in SDK (must be before project)
 include(pico_sdk_import.cmake)
+# Pull in FreeRTOS
+include(FreeRTOS_Kernel_import.cmake)
 
-PROJECT(examples)
+PROJECT(RemoteFinger C CXX ASM)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+
+pico_sdk_init()
 
 add_subdirectory(Standard)
