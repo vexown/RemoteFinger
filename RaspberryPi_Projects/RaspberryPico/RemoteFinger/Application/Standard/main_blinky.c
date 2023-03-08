@@ -200,7 +200,7 @@ const unsigned long ulValueToSend = 100UL;
 	for( ;; )
 	{
 		/* Place this task in the blocked state until it is time to run again. */
-		uint32_t SendToQueue_freq_ms = mainQUEUE_SEND_FREQUENCY_MS/4;
+		uint32_t SendToQueue_freq_ms = mainQUEUE_SEND_FREQUENCY_MS/10;
 		vTaskDelayUntil( &xNextWakeTime, SendToQueue_freq_ms );
 		printf("SendToQueue_freq_ms = %u ms\n", SendToQueue_freq_ms);
 		/* Send to the queue - causing the queue receive task to unblock and
