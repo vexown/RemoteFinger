@@ -234,7 +234,7 @@ const unsigned long ulExpectedValue = 100UL;
 			printf("LED STATE CHANGED \n");
 			gpio_xor_mask( 1u << mainTASK_LED );
 
-			/* Below is working in a standalone app but doesnt in this RTOS system*/
+			/* Ok I have found that the MPU6050 example doesnt seem to work in the blinky RTOS demo but does in comprehensive RTOS demo - lets find out why*/
 			/* Instead of just blinking an LED, read some I2C stuff from the gyro/accel sensor */
 			#if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
 			#warning i2c/mpu6050_i2c example requires a board with I2C pins
