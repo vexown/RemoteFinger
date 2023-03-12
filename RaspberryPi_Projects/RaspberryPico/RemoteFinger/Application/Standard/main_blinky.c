@@ -25,46 +25,6 @@
  * 1 tab == 4 spaces!
  */
 
-/******************************************************************************
- * NOTE 1:  This project provides two demo applications.  A simple blinky style
- * project, and a more comprehensive test and demo application.  The
- * mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting in main.c is used to select
- * between the two.  See the notes on using mainCREATE_SIMPLE_BLINKY_DEMO_ONLY
- * in main.c.  This file implements the comprehensive test and demo version.
- *
- * NOTE 2:  This file only contains the source code that is specific to the
- * full demo.  Generic functions, such FreeRTOS hook functions, and functions
- * required to configure the hardware, are defined in main.c.
- *
- ******************************************************************************
- *
- * main_full() creates all the demo application tasks and software timers, then
- * starts the scheduler.  The web documentation provides more details of the
- * standard demo application tasks, which provide no particular functionality,
- * but do provide a good example of how to use the FreeRTOS API.
- *
- * In addition to the standard demo tasks, the following tasks and tests are
- * defined and/or created within this file:
- *
- * "Reg test" tasks - These fill both the core and floating point registers with
- * known values, then check that each register maintains its expected value for
- * the lifetime of the task.  Each task uses a different set of values.  The reg
- * test tasks execute with a very low priority, so get preempted very
- * frequently.  A register containing an unexpected value is indicative of an
- * error in the context switching mechanism.
- *
- * "Check" task - The check task period is initially set to three seconds.  The
- * task checks that all the standard demo tasks, and the register check tasks,
- * are not only still executing, but are executing without reporting any errors.
- * If the check task discovers that a task has either stalled, or reported an
- * error, then it changes its own execution period from the initial three
- * seconds, to just 200ms.  The check task also toggles an LED each time it is
- * called.  This provides a visual indication of the system status:  If the LED
- * toggles every three seconds, then no issues have been discovered.  If the LED
- * toggles every 200ms, then an issue has been discovered with at least one
- * task.
- */
-
 /* Standard includes. */
 #include <stdio.h>
 
@@ -168,11 +128,9 @@ static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) {
 
 void main_blinky( void )
 {
-
-	stdio_init_all();
 #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
     #warning i2c/mpu6050_i2c example requires a board with I2C pins
-    puts("Default I2C pins were not defined");
+    printf("Default I2C pins were not defined");
 #else
     printf("Hello, MPU6050! Reading raw data from registers...\n");
 
@@ -186,22 +144,6 @@ void main_blinky( void )
     bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
 
     mpu6050_reset();
-
-    int16_t acceleration[3], gyro[3], temp;
-
-    while (1) {
-        mpu6050_read_raw(acceleration, gyro, &temp);
-
-        // These are the raw numbers from the chip, so will need tweaking to be really useful.
-        // See the datasheet for more information
-        printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
-        printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
-        // Temperature is simple so use the datasheet calculation to get deg C.
-        // Note this is chip temperature.
-        printf("Temp. = %f\n", (temp / 340.0) + 36.53);
-
-        sleep_ms(100);
-    }
 
 #endif
 
@@ -249,8 +191,10 @@ const unsigned long ulValueToSend = 100UL;
 	for( ;; )
 	{
 		/* Place this task in the blocked state until it is time to run again. */
-		vTaskDelayUntil( &xNextWakeTime, mainQUEUE_SEND_FREQUENCY_MS );
-
+		int32_t SendToQueue_freq_ms = mainQUEUE_SEND_FREQUENCY_MS/10;
+		vTaskDelayUntil( &xNextWakeTime, SendToQueue_freq_ms );
+		printf("SendToQueue_freq_ms = %u ms\n", SendToQueue_freq_ms);
+		
 		/* Send to the queue - causing the queue receive task to unblock and
 		toggle the LED.  0 is used as the block time so the sending operation
 		will not block - it shouldn't need to block as the queue should always
@@ -276,10 +220,25 @@ const unsigned long ulExpectedValue = 100UL;
 		xQueueReceive( xQueue, &ulReceivedValue, portMAX_DELAY );
 
 		/*  To get here something must have been received from the queue, but
-		is it the expected value?  If it is, toggle the LED. */
+		is it the expected value?  If it is, perform task activities */
 		if( ulReceivedValue == ulExpectedValue )
 		{
 			gpio_xor_mask( 1u << mainTASK_LED );
+
+#ifdef i2c_default
+			int16_t acceleration[3], gyro[3], temp;
+
+			mpu6050_read_raw(acceleration, gyro, &temp);
+
+			// These are the raw numbers from the chip, so will need tweaking to be really useful.
+			// See the datasheet for more information
+			printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
+			printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
+			// Temperature is simple so use the datasheet calculation to get deg C.
+			// Note this is chip temperature.
+			printf("Temp. = %f\n", (temp / 340.0) + 36.53);		
+#endif
+
 			ulReceivedValue = 0U;
 		}
 	}
