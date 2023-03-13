@@ -36,38 +36,23 @@
  *
  */
 
+
 /* Scheduler include files. */
 #include "FreeRTOS.h"
 #include "task.h"
-#include "semphr.h"
-
-/* Standard demo includes. */
-#include "TimerDemo.h"
-#include "QueueOverwrite.h"
-#include "EventGroupsDemo.h"
-#include "IntSemTest.h"
-#include "TaskNotify.h"
-
-#include "main.h"
 
 /* Library includes. */
 #include <stdio.h>
 #include "pico/stdlib.h"
-#if ( mainRUN_ON_CORE == 1 )
-#include "pico/multicore.h"
-#endif
 
 /*-----------------------------------------------------------*/
 
-/*
- * Configure the hardware as necessary to run this demo.
- */
+/* Hardware setup function */
 static void prvSetupHardware( void );
-
+/* Main function which does some set up and starts the scheduler */
 extern void main_blinky( void );
 
-/* Prototypes for the standard FreeRTOS callback/hook functions implemented
-within this file. */
+/* Prototypes for the standard FreeRTOS callback/hook functions implemented within this file. */
 void vApplicationMallocFailedHook( void );
 void vApplicationIdleHook( void );
 void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName );
@@ -84,28 +69,10 @@ int main( void )
 {
     /* Configure the Raspberry Pico hardware for blinky */
     prvSetupHardware();
-    const char *rtos_name;
-#if ( portSUPPORT_SMP == 1 )
-    rtos_name = "FreeRTOS SMP";
-#else
-    rtos_name = "FreeRTOS";
-#endif
 
-#if ( portSUPPORT_SMP == 1 ) && ( configNUM_CORES == 2 )
-    printf("%s on both cores:\n", rtos_name);
+    /* Go to the main C file which does some setup and starts the scheduler */
     vLaunch();
-#endif
 
-#if ( mainRUN_ON_CORE == 1 )
-    printf("%s on core 1:\n", rtos_name);
-    multicore_launch_core1(vLaunch);
-    while (true);
-#else
-    printf("%s on core 0:\n", rtos_name);
-    vLaunch();
-#endif
-
-    return 0;
 }
 /*-----------------------------------------------------------*/
 
