@@ -40,46 +40,35 @@
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"
 
-/* Priorities at which the tasks are created. */
+/* Priorities for the tasks */
 #define mainQUEUE_RECEIVE_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
 #define	mainQUEUE_SEND_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
-/* The rate at which data is sent to the queue.  The 200ms value is converted
-to ticks using the portTICK_PERIOD_MS constant. */
+/* The rate at which data is sent to the queue. The rate is once every mainQUEUE_SEND_FREQUENCY_MS (once every 1000ms by default) */
 #define mainQUEUE_SEND_FREQUENCY_MS			( 1000 / portTICK_PERIOD_MS )
 
-/* The number of items the queue can hold.  This is 1 as the receive task
-will remove items as they are added, meaning the send task should always find
-the queue empty. */
+/* The number of items the queue can hold */
 #define mainQUEUE_LENGTH					( 1 )
-
-/* The LED toggled by the Rx task. */
-#define mainTASK_LED						( PICO_DEFAULT_LED_PIN )
 
 /*-----------------------------------------------------------*/
 
-/*
- * Called by main() to run the full demo (as opposed to the blinky demo) when
- * mainCREATE_SIMPLE_BLINKY_DEMO_ONLY is set to 0.
- */
+/* Main function called by main() from main.c (lol). This one does some setup and starts the scheduler */
 void main_blinky( void );
 
 /*-----------------------------------------------------------*/
 
-/*
- * The tasks as described in the comments at the top of this file.
- */
+/* Tasks declarations */
 static void prvQueueReceiveTask( void *pvParameters );
 static void prvQueueSendTask( void *pvParameters );
 
 /*-----------------------------------------------------------*/
 
-/* The queue used by both tasks. */
+/* The queue instance */
 static QueueHandle_t xQueue = NULL;
 
 /*-----------------------------------------------------------*/
 
-// By default these devices  are on bus address 0x68
+/* By default the MPU6050 devices are on bus address 0x68 */ 
 static int addr = 0x68;
 
 #ifdef i2c_default
@@ -223,7 +212,7 @@ const unsigned long ulExpectedValue = 100UL;
 		is it the expected value?  If it is, perform task activities */
 		if( ulReceivedValue == ulExpectedValue )
 		{
-			gpio_xor_mask( 1u << mainTASK_LED );
+			gpio_xor_mask( 1u << PICO_DEFAULT_LED_PIN );
 
 #ifdef i2c_default
 			int16_t acceleration[3], gyro[3], temp;
