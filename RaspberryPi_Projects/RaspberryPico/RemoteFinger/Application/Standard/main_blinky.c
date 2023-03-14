@@ -1,5 +1,5 @@
-/*
- * FreeRTOS V202107.00
+/********************************* SYSTEM *************************************/
+/* FreeRTOS V202107.00
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23,7 +23,14 @@
  * http://aws.amazon.com/freertos
  *
  * 1 tab == 4 spaces!
- */
+ *******************************************************************************/
+
+/********************************* HARDWARE ************************************/
+/* MPU6050 - world’s first integrated 6-axis MotionTracking device that combines
+ * a 3-axis gyroscope, 3-axis accelerometer, and a Digital Motion Processor™ (DMP) 
+ * Datasheet: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf
+ * 
+ *******************************************************************************/
 
 /* Standard includes. */
 #include <stdio.h>
@@ -50,6 +57,9 @@
 /* The number of items the queue can hold */
 #define mainQUEUE_LENGTH					( 1 )
 
+/* By default the MPU6050 devices are on bus address 0x68 */ 
+#define MPU6050_I2C_ADDRESS   				 0x68
+
 /*-----------------------------------------------------------*/
 
 /* Main function called by main() from main.c (lol). This one does some setup and starts the scheduler */
@@ -68,48 +78,45 @@ static QueueHandle_t xQueue = NULL;
 
 /*-----------------------------------------------------------*/
 
-/* By default the MPU6050 devices are on bus address 0x68 */ 
-static int addr = 0x68;
-
 #ifdef i2c_default
-static void mpu6050_reset() {
-    // Two byte reset. First byte register, second byte data
-    // There are a load more options to set up the device in different ways that could be added here
+static void mpu6050_reset() 
+{
+    /* Two byte reset. First byte register, second byte data */
     uint8_t buf[] = {0x6B, 0x00};
-    i2c_write_blocking(i2c_default, addr, buf, 2, false);
+    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, buf, 2, false);
 }
 
-static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) {
-    // For this particular device, we send the device the register we want to read
-    // first, then subsequently read from the device. The register is auto incrementing
-    // so we don't need to keep sending the register we want, just the first.
+static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) 
+{
+    /* For this particular device, we send the device the register we want to read
+     * first, then subsequently read from the device. The register is auto incrementing
+     * so we don't need to keep sending the register we want, just the first.
+	 */
 
     uint8_t buffer[6];
 
-    // Start reading acceleration registers from register 0x3B for 6 bytes
+    /* Start reading acceleration registers from register 0x3B for 6 bytes */
     uint8_t val = 0x3B;
-    i2c_write_blocking(i2c_default, addr, &val, 1, true); // true to keep master control of bus
-    i2c_read_blocking(i2c_default, addr, buffer, 6, false);
+    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &val, 1, true); 
+    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, buffer, 6, false);
 
     for (int i = 0; i < 3; i++) {
         accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
     }
 
-    // Now gyro data from reg 0x43 for 6 bytes
-    // The register is auto incrementing on each read
+    /* Now gyro data from reg 0x43 for 6 bytes. The register is auto incrementing on each read */
     val = 0x43;
-    i2c_write_blocking(i2c_default, addr, &val, 1, true);
-    i2c_read_blocking(i2c_default, addr, buffer, 6, false);  // False - finished with bus
+    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &val, 1, true);
+    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, buffer, 6, false);  
 
     for (int i = 0; i < 3; i++) {
         gyro[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);;
     }
 
-    // Now temperature from reg 0x41 for 2 bytes
-    // The register is auto incrementing on each read
+    /* Now temperature from reg 0x41 for 2 bytes. The register is auto incrementing on each read */
     val = 0x41;
-    i2c_write_blocking(i2c_default, addr, &val, 1, true);
-    i2c_read_blocking(i2c_default, addr, buffer, 2, false);  // False - finished with bus
+    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &val, 1, true);
+    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, buffer, 2, false);
 
     *temp = buffer[0] << 8 | buffer[1];
 }
@@ -118,31 +125,31 @@ static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) {
 void main_blinky( void )
 {
 #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
-    #warning i2c/mpu6050_i2c example requires a board with I2C pins
+    #warning i2c/mpu6050_i2c code requires a board with I2C pins
     printf("Default I2C pins were not defined");
 #else
-    printf("Hello, MPU6050! Reading raw data from registers...\n");
+    printf("Hello, MPU6050! Setting up I2C config... \n");
 
-    // This example will use I2C0 on the default SDA and SCL pins (4, 5 on a Pico)
+    /* This example will use I2C0 on the default SDA and SCL pins (4, 5 on a Pico) */
     i2c_init(i2c_default, 400 * 1000);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
     gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
-    // Make the I2C pins available to picotool
+    /* Make the I2C pins available to picotool */
     bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
 
     mpu6050_reset();
-
+	printf("MPU6050 config completed \n");
 #endif
 
+	printf("Setting up the RTOS configuration... \n");
     /* Create the queue. */
 	xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( uint32_t ) );
 
 	if( xQueue != NULL )
 	{
-		/* Start the two tasks as described in the comments at the top of this
-		file. */
+		/* Create the tasks */
 		xTaskCreate( prvQueueReceiveTask,				/* The function that implements the task. */
 					"Rx", 								/* The text name assigned to the task - for debug only as it is not used by the kernel. */
 					configMINIMAL_STACK_SIZE, 			/* The size of the stack to allocate to the task. */
@@ -153,6 +160,7 @@ void main_blinky( void )
 		xTaskCreate( prvQueueSendTask, "TX", configMINIMAL_STACK_SIZE, NULL, mainQUEUE_SEND_TASK_PRIORITY, NULL );
 
 		/* Start the tasks and timer running. */
+		printf("RTOS configuration finished, starting the scheduler... \n");
 		vTaskStartScheduler();
 	}
 
@@ -164,12 +172,11 @@ void main_blinky( void )
 	http://www.freertos.org/a00111.html. */
 	for( ;; );
 }
-/*-----------------------------------------------------------*/
 
 static void prvQueueSendTask( void *pvParameters )
 {
-TickType_t xNextWakeTime;
-const unsigned long ulValueToSend = 100UL;
+	TickType_t xNextWakeTime;
+	const unsigned long ulValueToSend = 100UL;
 
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
@@ -191,7 +198,6 @@ const unsigned long ulValueToSend = 100UL;
 		xQueueSend( xQueue, &ulValueToSend, 0U );
 	}
 }
-/*-----------------------------------------------------------*/
 
 static void prvQueueReceiveTask( void *pvParameters )
 {
@@ -219,20 +225,18 @@ const unsigned long ulExpectedValue = 100UL;
 
 			mpu6050_read_raw(acceleration, gyro, &temp);
 
-			// These are the raw numbers from the chip, so will need tweaking to be really useful.
-			// See the datasheet for more information
+			/* Read raw values */
 			printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
 			printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
-			// Temperature is simple so use the datasheet calculation to get deg C.
-			// Note this is chip temperature.
+			/* Read chip temp */
 			printf("Temp. = %f\n", (temp / 340.0) + 36.53);		
 #endif
-
+			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
 			ulReceivedValue = 0U;
 		}
 	}
 }
-/*-----------------------------------------------------------*/
+
 
 
 
