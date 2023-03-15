@@ -63,7 +63,7 @@
 /*-----------------------------------------------------------*/
 
 /* Main function called by main() from main.c (lol). This one does some setup and starts the scheduler */
-void main_blinky( void );
+void RemoteFinger_main( void );
 
 /*-----------------------------------------------------------*/
 
@@ -122,7 +122,7 @@ static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp)
 }
 #endif
 
-void main_blinky( void )
+void RemoteFinger_main( void )
 {
 #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
     #warning i2c/mpu6050_i2c code requires a board with I2C pins
