@@ -50,7 +50,7 @@
 /* Hardware setup function */
 static void prvSetupHardware( void );
 /* Main function which does some set up and starts the scheduler */
-extern void main_blinky( void );
+extern void RemoteFinger_main( void );
 
 /* Prototypes for the standard FreeRTOS callback/hook functions implemented within this file. */
 void vApplicationMallocFailedHook( void );
@@ -62,7 +62,7 @@ void vApplicationTickHook( void );
 
 void vLaunch( void)
 {
-    main_blinky();
+    RemoteFinger_main();
 }
 
 int main( void )
