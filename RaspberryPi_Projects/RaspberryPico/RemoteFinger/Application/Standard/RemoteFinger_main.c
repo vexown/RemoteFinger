@@ -129,8 +129,8 @@ void RemoteFinger_main( void )
     printf("Default I2C pins were not defined");
 #else
     printf("Hello, MPU6050! Setting up I2C config... \n");
+    /* Set I2C for MPU6050 communication on the default I2C0 SDA and SCL pins (4, 5 on a Pico) */
 
-    /* This example will use I2C0 on the default SDA and SCL pins (4, 5 on a Pico) */
     i2c_init(i2c_default, 400 * 1000);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
