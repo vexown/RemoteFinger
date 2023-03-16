@@ -1,5 +1,6 @@
 #!/bin/bash
 
+echo "########## Build.sh - start ##########"
 echo "Building all components with CMake"
 
 if [ ! -d "build" ]; then
