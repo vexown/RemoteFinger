@@ -42,7 +42,6 @@
 
 /* SDK includes */
 #include "pico/stdlib.h"
-#include <string.h>
 #include "pico/binary_info.h"
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"

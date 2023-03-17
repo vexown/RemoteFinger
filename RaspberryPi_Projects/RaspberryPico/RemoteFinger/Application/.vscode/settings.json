@@ -17,5 +17,12 @@
         }
     },
     "cmake.buildBeforeRun": true,
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "files.associations": {
+        "string.h": "c",
+        "stdio.h": "c",
+        "freertos.h": "c",
+        "task.h": "c",
+        "semphr.h": "c"
+    }
 }
