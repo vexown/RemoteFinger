@@ -27,12 +27,8 @@
 
 /******************************************************************************
  *
- * This file implements the code that is not demo specific, including the
+ * This file implements the code that prepares the system, including the
  * hardware setup and standard FreeRTOS hook functions.
- *
- * ENSURE TO READ THE DOCUMENTATION PAGE FOR THIS PORT AND DEMO APPLICATION ON
- * THE http://www.FreeRTOS.org WEB SITE FOR FULL INFORMATION ON USING THIS DEMO
- * APPLICATION, AND ITS ASSOCIATE FreeRTOS ARCHITECTURE PORT!
  *
  */
 
@@ -60,20 +56,16 @@ void vApplicationTickHook( void );
 
 /*-----------------------------------------------------------*/
 
-void vLaunch( void)
-{
-    RemoteFinger_main();
-}
-
 int main( void )
 {
     /* Configure the Raspberry Pico hardware for blinky */
     prvSetupHardware();
 
     /* Go to the main C file which does some setup and starts the scheduler */
-    vLaunch();
+    RemoteFinger_main();
 
 }
+
 /*-----------------------------------------------------------*/
 
 static void prvSetupHardware( void )
