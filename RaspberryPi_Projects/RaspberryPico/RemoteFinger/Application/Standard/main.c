@@ -70,7 +70,10 @@ int main( void )
 
 static void prvSetupHardware( void )
 {
+    /* STD I/O init - in this case just UART */
     stdio_init_all();
+
+    /* Board LED init */
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, 1);
     gpio_put(PICO_DEFAULT_LED_PIN, !PICO_DEFAULT_LED_PIN_INVERTED);

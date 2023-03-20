@@ -58,6 +58,7 @@
 
 /* By default the MPU6050 devices are on bus address 0x68 */ 
 #define MPU6050_I2C_ADDRESS   				 0x68
+#define I2C_BAUD_RATE_400KHz				 ((uint32_t)4E5)
 
 /*-----------------------------------------------------------*/
 
@@ -81,8 +82,9 @@ static QueueHandle_t xQueue = NULL;
 static void mpu6050_reset() 
 {
     /* Two byte reset. First byte register, second byte data */
-    uint8_t buf[] = {0x6B, 0x00};
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, buf, 2, false);
+    uint8_t outputData[] = {0x6B, 0x00};
+	size_t length = sizeof(outputData);
+    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData, length, false);
 }
 
 static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) 
@@ -129,14 +131,11 @@ void RemoteFinger_main( void )
 #else
     printf("Hello, MPU6050! Setting up I2C config... \n");
     /* Set I2C for MPU6050 communication on the default I2C0 SDA and SCL pins (4, 5 on a Pico) */
-
-    i2c_init(i2c_default, 400 * 1000);
+    i2c_init(i2c_default, I2C_BAUD_RATE_400KHz);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
     gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
-    /* Make the I2C pins available to picotool */
-    bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
 
     mpu6050_reset();
 	printf("MPU6050 config completed \n");
