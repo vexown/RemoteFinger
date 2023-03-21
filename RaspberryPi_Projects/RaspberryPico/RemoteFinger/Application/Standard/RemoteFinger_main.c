@@ -59,6 +59,7 @@
 /* By default the MPU6050 devices are on bus address 0x68 */ 
 #define MPU6050_I2C_ADDRESS   				 0x68
 #define I2C_BAUD_RATE_400KHz				 ((uint32_t)4E5)
+#define MPU6050_REGISTER_I2C_READ_FAIL		 ((uint8_t)0xFF)
 
 /*-----------------------------------------------------------*/
 
@@ -84,11 +85,28 @@ static uint8_t read_mpu6050_register(uint8_t registerAddress)
 {
 	uint8_t reg_value;
     uint8_t reg_address = registerAddress;
+	uint32_t errorCount = 0;
 
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, 1, true); 
-    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, 1, false);
+    while((!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, 1, true)) && (errorCount < 6));
+	{
+		errorCount++;
+		printf("I2C write transaction failed. Retrying... "); /* Data not acknowledged by slave (or some other error) */
+	}
 
-	return reg_value;
+    while((!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, 1, false)) && (errorCount < 6));
+	{
+		errorCount++;
+		printf("I2C read transaction failed. Retrying... "); 
+	}
+
+	if(errorCount >= 6)
+	{
+		return MPU6050_REGISTER_I2C_READ_FAIL;
+	}
+	else
+	{
+		return reg_value;
+	}
 }
 
 static void mpu6050_reset() 
