@@ -29,7 +29,7 @@
 /* MPU6050 - world’s first integrated 6-axis MotionTracking device that combines
  * a 3-axis gyroscope, 3-axis accelerometer, and a Digital Motion Processor™ (DMP) 
  * Datasheet: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf
- * 
+ * Register map: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf
  *******************************************************************************/
 
 /* Standard includes. */
@@ -79,12 +79,32 @@ static QueueHandle_t xQueue = NULL;
 /*-----------------------------------------------------------*/
 
 #ifdef i2c_default
+
+static uint8_t read_mpu6050_register(uint8_t registerAddress)
+{
+	uint8_t reg_value;
+    uint8_t reg_address = registerAddress;
+
+    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, 1, true); 
+    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, 1, false);
+
+	return reg_value;
+}
+
 static void mpu6050_reset() 
 {
-    /* Two byte reset. First byte register, second byte data */
-    uint8_t outputData[] = {0x6B, 0x00};
-	size_t length = sizeof(outputData);
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData, length, false);
+	size_t length;
+
+	/* Register: PWR_MGMT_1 (0x6B), Value: 0x80, Action: Reset all internal registers (of MPU6050) to default values */
+    uint8_t outputData_Reset[] = {0x6B, 0x80};
+	length = sizeof(outputData_Reset);
+	i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData_Reset, length, false);
+	sleep_us(1); /* Give the slave device some time to perform the reset */
+
+	/* Register: PWR_MGMT_1 (0x6B), Value: 0x00, Action: Take MPU6050 out of sleep mode (which is the default state after reset) */
+	uint8_t outputData_WakeUp[] = {0x6B, 0x00};
+	length = sizeof(outputData_WakeUp);
+	i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData_WakeUp, length, false);
 }
 
 static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) 
