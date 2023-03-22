@@ -84,29 +84,37 @@ static QueueHandle_t xQueue = NULL;
 static uint8_t read_mpu6050_register(uint8_t registerAddress)
 {
 	uint8_t reg_value;
-    uint8_t reg_address = registerAddress;
+    const uint8_t reg_address = registerAddress;
+	const uint32_t maxRetries = 5;
+	const uint32_t retryDelayUs = 5;
 	uint32_t errorCount = 0;
 
-    while((!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, 1, true)) && (errorCount < 6));
+    while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, 1, true));
 	{
-		errorCount++;
 		printf("I2C write transaction failed. Retrying... "); /* Data not acknowledged by slave (or some other error) */
-	}
 
-    while((!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, 1, false)) && (errorCount < 6));
-	{
+		sleep_us(retryDelayUs);
 		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_REGISTER_I2C_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+
+    while(!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, 1, false));
+	{
 		printf("I2C read transaction failed. Retrying... "); 
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_REGISTER_I2C_READ_FAIL;
+		}
 	}
 
-	if(errorCount >= 6)
-	{
-		return MPU6050_REGISTER_I2C_READ_FAIL;
-	}
-	else
-	{
-		return reg_value;
-	}
+	return reg_value;
 }
 
 static void mpu6050_reset() 
