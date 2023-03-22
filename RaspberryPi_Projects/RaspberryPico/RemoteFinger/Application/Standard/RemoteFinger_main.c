@@ -59,6 +59,7 @@
 /* By default the MPU6050 devices are on bus address 0x68 */ 
 #define MPU6050_I2C_ADDRESS   				 0x68
 #define I2C_BAUD_RATE_400KHz				 ((uint32_t)4E5)
+#define MPU6050_REGISTER_I2C_READ_FAIL		 ((uint8_t)0xFF)
 
 /*-----------------------------------------------------------*/
 
@@ -83,10 +84,40 @@ static QueueHandle_t xQueue = NULL;
 static uint8_t read_mpu6050_register(uint8_t registerAddress)
 {
 	uint8_t reg_value;
-    uint8_t reg_address = registerAddress;
+    const uint8_t reg_address = registerAddress;
+	const uint32_t maxRetries = 5;
+	const uint32_t retryDelayUs = 5;
+	const size_t dataToSend_length = sizeof(reg_address);
+	const size_t dataToRead_length = sizeof(reg_value);
+	uint32_t errorCount = 0;
 
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, 1, true); 
-    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, 1, false);
+	/* Send a request to read a register of the slave device */
+	/* This is done with a write transaction providing the address of the register you want to read */
+    while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_address, dataToSend_length, true))
+	{
+		printf("I2C write transaction failed. Retrying... "); /* Data not acknowledged by slave (or some other error) */
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_REGISTER_I2C_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+
+	/* Send a read command specifying the number of bytes (1) you want to read (of the register address you specified in prev command) */
+    while(!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, &reg_value, dataToRead_length, false))
+	{
+		printf("I2C read transaction failed. Retrying... "); 
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_REGISTER_I2C_READ_FAIL;
+		}
+	}
 
 	return reg_value;
 }
