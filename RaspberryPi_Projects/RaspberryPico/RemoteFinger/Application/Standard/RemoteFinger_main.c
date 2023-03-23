@@ -46,6 +46,11 @@
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"
 
+/* Error handling macros */
+#define STATUS_SUCCESS						 0
+#define MPU6050_REGISTER_I2C_READ_FAIL		 ((uint8_t)0xFF)
+#define MPU6050_SENSOR_DATA_READ_FAIL		 ((uint32_t)0xDEADBEEF)
+
 /* Priorities for the tasks */
 #define mainQUEUE_RECEIVE_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
 #define	mainQUEUE_SEND_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
@@ -59,7 +64,6 @@
 /* By default the MPU6050 devices are on bus address 0x68 */ 
 #define MPU6050_I2C_ADDRESS   				 0x68
 #define I2C_BAUD_RATE_400KHz				 ((uint32_t)4E5)
-#define MPU6050_REGISTER_I2C_READ_FAIL		 ((uint8_t)0xFF)
 
 /*-----------------------------------------------------------*/
 
@@ -76,6 +80,15 @@ static void prvQueueSendTask( void *pvParameters );
 
 /* The queue instance */
 static QueueHandle_t xQueue = NULL;
+
+/*-----------------------------------------------------------*/
+
+typedef struct 
+{
+	int16_t X;
+	int16_t Y;
+	int16_t Z;
+}AxisType;
 
 /*-----------------------------------------------------------*/
 
@@ -122,55 +135,182 @@ static uint8_t read_mpu6050_register(uint8_t registerAddress)
 	return reg_value;
 }
 
-static void mpu6050_reset() 
+static uint8_t mpu6050_reset() 
 {
 	size_t length;
+	uint32_t errorCount = 0;
+	const uint32_t maxRetries = 5;
+	const uint32_t retryDelayUs = 5;
 
 	/* Register: PWR_MGMT_1 (0x6B), Value: 0x80, Action: Reset all internal registers (of MPU6050) to default values */
     uint8_t outputData_Reset[] = {0x6B, 0x80};
 	length = sizeof(outputData_Reset);
-	i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData_Reset, length, false);
+	while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData_Reset, length, false))
+	{
+		printf("I2C write transaction failed. Retrying... "); /* Data not acknowledged by slave (or some other error) */
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_REGISTER_I2C_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+
 	sleep_us(1); /* Give the slave device some time to perform the reset */
 
 	/* Register: PWR_MGMT_1 (0x6B), Value: 0x00, Action: Take MPU6050 out of sleep mode (which is the default state after reset) */
 	uint8_t outputData_WakeUp[] = {0x6B, 0x00};
 	length = sizeof(outputData_WakeUp);
-	i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData_WakeUp, length, false);
+	while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, outputData_WakeUp, length, false))
+	{
+		printf("I2C write transaction failed. Retrying... ");
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_REGISTER_I2C_READ_FAIL;
+		}
+	}
+
+	return STATUS_SUCCESS;
 }
 
-static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) 
+/* -------------------------------------------------------------------------------------*/
+/* Function for reading sensor data (Accelerometer, Gyroscope, SensorTemp) from MPU6050 */
+/* -------------------------------------------------------------------------------------*/
+/* Gyroscope measurements are written to the registers read in this function at the Sample Rate as defined in register SMPRT_DIV (0x19) */
+/* Each 16-bit gyroscope measurement has a full scale defined in FS_SEL field of GYRO_CONFIG register (0x1B) */
+/* ----------------------------------------------------------------------------------------------------------*/
+/* Accelerometer measurements are written to these registers read in this function at the Sample Rate as defined in register SMPRT_DIV (0x19) */
+/* Each 16-bit accelerometer measurement has a full scale defined in ACCEL_FS field of ACCEL_CONFIG register (0x1C)*/
+/* ----------------------------------------------------------------------------------------------------------------*/
+/* Temperature measurements are written to these registers at the Sample Rate as defined in register SMPRT_DIV (0x19) */
+/* Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53 */
+
+static uint32_t mpu6050_read_raw(AxisType *AccelerometerInstance, AxisType *GyroscopeInstance, int16_t *Temperature) 
 {
-    /* For this particular device, we send the device the register we want to read
-     * first, then subsequently read from the device. The register is auto incrementing
-     * so we don't need to keep sending the register we want, just the first.
-	 */
+    uint8_t readBuffer[6];
+	uint8_t regAddress;
+	size_t lengthToSend;
+	size_t lengthToRead;
+	uint32_t errorCount = 0;
+	const uint32_t maxRetries = 5;
+	const uint32_t retryDelayUs = 5;
 
-    uint8_t buffer[6];
+	/* Registers: ACCEL_XOUT_H (0x3B), ACCEL_XOUT_L, ACCEL_YOUT_H, ACCEL_YOUT_L, ACCEL_ZOUT_H, and ACCEL_ZOUT_L (0x40) */
+	/* Values: ACCEL_XOUT[15:8], ACCEL_XOUT[7:0], ACCEL_YOUT[15:8], ACCEL_YOUT[7:0], ACCEL_ZOUT[15:8], ACCEL_ZOUT[7:0] */ 
+	/* Action: Read Accelerometer Measurements */
+    regAddress = 0x3B;
+	lengthToSend = sizeof(regAddress);
+	lengthToRead = sizeof(readBuffer);
+	/* Request read at address 0x3B by sending a write transaction with the address */
+	while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &regAddress, lengthToSend, true))
+	{
+		printf("I2C write transaction failed. Retrying... ");
 
-    /* Start reading acceleration registers from register 0x3B for 6 bytes */
-    uint8_t val = 0x3B;
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &val, 1, true); 
-    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, buffer, 6, false);
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_SENSOR_DATA_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+	/* Send a read transaction with the number of bytes (6) you want to read, to which the slave device will respond with the requested data */ 
+	while(!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, readBuffer, lengthToRead, false))
+	{
+		printf("I2C read transaction failed. Retrying... ");
 
-    for (int i = 0; i < 3; i++) {
-        accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
-    }
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_SENSOR_DATA_READ_FAIL;
+		}
+	}
+	errorCount = 0;
 
-    /* Now gyro data from reg 0x43 for 6 bytes. The register is auto incrementing on each read */
-    val = 0x43;
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &val, 1, true);
-    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, buffer, 6, false);  
+	/* Combine the High and Low words (8bit values) of each accelerometer axis into int16 values */
+    AccelerometerInstance->X = ((readBuffer[0] << 8) | (readBuffer[1]));
+	AccelerometerInstance->Y = ((readBuffer[2] << 8) | (readBuffer[3]));
+	AccelerometerInstance->Z = ((readBuffer[4] << 8) | (readBuffer[5]));
 
-    for (int i = 0; i < 3; i++) {
-        gyro[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);;
-    }
+	/* Registers: GYRO_XOUT_H (0x43), GYRO_XOUT_L, GYRO_YOUT_H, GYRO_YOUT_L, GYRO_ZOUT_H, and GYRO_ZOUT_L (0x48) */
+	/* Values: GYRO_XOUT[15:8], GYRO_XOUT[7:0], GYRO_YOUT[15:8], GYRO_YOUT[7:0], GYRO_ZOUT[15:8], GYRO_ZOUT[7:0] */ 
+	/* Action: Read Gyroscope Measurements */
+    regAddress = 0x43;
+	/* Request read at address 0x3B by sending a write transaction with the address */
+	while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &regAddress, lengthToSend, true))
+	{
+		printf("I2C write transaction failed. Retrying... ");
 
-    /* Now temperature from reg 0x41 for 2 bytes. The register is auto incrementing on each read */
-    val = 0x41;
-    i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &val, 1, true);
-    i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, buffer, 2, false);
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_SENSOR_DATA_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+	/* Send a read transaction with the number of bytes (6) you want to read, to which the slave device will respond with the requested data */
+	while(!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, readBuffer, lengthToRead, false))
+	{
+		printf("I2C read transaction failed. Retrying... ");
 
-    *temp = buffer[0] << 8 | buffer[1];
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_SENSOR_DATA_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+
+	/* Combine the High and Low words (8bit values) of each gyroscope axis into int16 values */
+    GyroscopeInstance->X = ((readBuffer[0] << 8) | (readBuffer[1]));
+	GyroscopeInstance->Y = ((readBuffer[2] << 8) | (readBuffer[3]));
+	GyroscopeInstance->Z = ((readBuffer[4] << 8) | (readBuffer[5]));
+
+	/* Registers: TEMP_OUT_H (0x41) and TEMP_OUT_L (0x42) */
+	/* Values: TEMP_OUT[15:8], TEMP_OUT[7:0] */ 
+	/* Action: Read Temperature Measurements */
+    regAddress = 0x41;
+	lengthToSend = sizeof(regAddress);
+	lengthToRead = 2U;
+	/* Request read at address 0x3B by sending a write transaction with the address */
+	while(!i2c_write_blocking(i2c_default, MPU6050_I2C_ADDRESS, &regAddress, lengthToSend, true))
+	{
+		printf("I2C write transaction failed. Retrying... ");
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_SENSOR_DATA_READ_FAIL;
+		}
+	}
+	errorCount = 0;
+	
+	/* Send a read transaction with the number of bytes (6) you want to read, to which the slave device will respond with the requested data */
+	while(!i2c_read_blocking(i2c_default, MPU6050_I2C_ADDRESS, readBuffer, lengthToRead, false))
+	{
+		printf("I2C write transaction failed. Retrying... ");
+
+		sleep_us(retryDelayUs);
+		errorCount++;
+		if(errorCount > maxRetries)
+		{
+			return MPU6050_SENSOR_DATA_READ_FAIL;
+		}
+	}
+
+	/* Combine the High and Low words (8bit values) of the temperature into a int16 value */
+    *Temperature = (readBuffer[0] << 8) | (readBuffer[1]);
+
+	return STATUS_SUCCESS;
 }
 #endif
 
@@ -188,7 +328,8 @@ void RemoteFinger_main( void )
     gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
     gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
 
-    mpu6050_reset();
+	/* TO DO - Add error logging to NVM, reset reactions, system status indicators such as LEDs or 7seg or LCD  */
+    (void)mpu6050_reset();
 	printf("MPU6050 config completed \n");
 #endif
 
@@ -238,7 +379,7 @@ static void prvQueueSendTask( void *pvParameters )
 		/* Place this task in the blocked state until it is time to run again. */
 		int32_t SendToQueue_freq_ms = mainQUEUE_SEND_FREQUENCY_MS/10;
 		vTaskDelayUntil( &xNextWakeTime, SendToQueue_freq_ms );
-		printf("SendToQueue_freq_ms = %u ms\n", SendToQueue_freq_ms);
+		printf("SendToQueue_freq_ms = %u ms\n\n", SendToQueue_freq_ms);
 		
 		/* Send to the queue - causing the queue receive task to unblock and
 		toggle the LED.  0 is used as the block time so the sending operation
@@ -270,15 +411,16 @@ const unsigned long ulExpectedValue = 100UL;
 			gpio_xor_mask( 1u << PICO_DEFAULT_LED_PIN );
 
 #ifdef i2c_default
-			int16_t acceleration[3], gyro[3], temp;
+			static AxisType AccelerometerInstance, GyroscopeInstance; 
+			static int16_t Temperature;
 
-			mpu6050_read_raw(acceleration, gyro, &temp);
+			/* TO DO - Add error logging to NVM, reset reactions, system status indicators such as LEDs or 7seg or LCD  */			
+			(void)mpu6050_read_raw(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
 
-			/* Read raw values */
-			printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
-			printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
-			/* Read chip temp */
-			printf("Temp. = %f\n", (temp / 340.0) + 36.53);		
+			/* Print MPU6050 data */
+			printf("Accelerometer: X = %d, Y = %d, Z = %d\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
+			printf("Gyroscope: X = %d, Y = %d, Z = %d\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
+			printf("Sensor Temperature: %f \n", (Temperature / 340.0) + 36.53);		
 #endif
 			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
 			ulReceivedValue = 0U;
