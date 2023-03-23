@@ -158,7 +158,7 @@ static uint8_t mpu6050_reset()
 	}
 	errorCount = 0;
 
-	sleep_us(1); /* Give the slave device some time to perform the reset */
+	sleep_ms(1); /* Give the slave device some time to perform the reset */
 
 	/* Register: PWR_MGMT_1 (0x6B), Value: 0x00, Action: Take MPU6050 out of sleep mode (which is the default state after reset) */
 	uint8_t outputData_WakeUp[] = {0x6B, 0x00};
