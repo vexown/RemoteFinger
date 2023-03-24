@@ -85,9 +85,9 @@ static QueueHandle_t xQueue = NULL;
 
 typedef struct 
 {
-	int16_t X;
-	int16_t Y;
-	int16_t Z;
+	float X;
+	float Y;
+	float Z;
 }AxisType;
 
 /*-----------------------------------------------------------*/
@@ -181,16 +181,22 @@ static uint8_t mpu6050_reset()
 /* -------------------------------------------------------------------------------------*/
 /* Function for reading sensor data (Accelerometer, Gyroscope, SensorTemp) from MPU6050 */
 /* -------------------------------------------------------------------------------------*/
-/* Gyroscope measurements are written to the registers read in this function at the Sample Rate as defined in register SMPRT_DIV (0x19) */
-/* Each 16-bit gyroscope measurement has a full scale defined in FS_SEL field of GYRO_CONFIG register (0x1B) */
-/* ----------------------------------------------------------------------------------------------------------*/
-/* Accelerometer measurements are written to these registers read in this function at the Sample Rate as defined in register SMPRT_DIV (0x19) */
-/* Each 16-bit accelerometer measurement has a full scale defined in ACCEL_FS field of ACCEL_CONFIG register (0x1C)*/
-/* ----------------------------------------------------------------------------------------------------------------*/
-/* Temperature measurements are written to these registers at the Sample Rate as defined in register SMPRT_DIV (0x19) */
-/* Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53 */
+/** Gyroscope measurements are written to the registers read in this function at the Sample Rate (8kHz default)
+ * as defined in register SMPRT_DIV (0x19) 
+ * By default Full Scale Range is +/- 250 deg/s and LSB Sensitivity is 131 LSB/(deg/s) so per 1 digital value (1 LSB)
+ * we have 0.00763 deg/s
+ * Each 16-bit gyroscope measurement has a full scale defined in FS_SEL field of GYRO_CONFIG register (0x1B)  */
+/* -----------------------------------------------------------------------------------------------------------*/
+/** Accelerometer measurements are written to the registers read in this function at the Sample Rate as defined in 
+ * register SMPRT_DIV (0x19) (8kHz default but accelerometer output is limited to 1kHz so it sends the same samples 
+ * more than once if Sample Rate is higher)
+ * By default Full Scale Range is +/- 2g and LSB Sensitivity is 16384 LSB/g so per 1 digital value (1 LSB) we have 0.000061g
+ * Each 16-bit accelerometer measurement has a full scale defined in ACCEL_FS field of ACCEL_CONFIG register (0x1C) */
+/* -----------------------------------------------------------------------------------------------------------------*/
+/** Temp measurements are written to the registers at the Sample Rate (8kHz default) as defined in register SMPRT_DIV (0x19)
+ * Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53 */
 
-static uint32_t mpu6050_read_raw(AxisType *AccelerometerInstance, AxisType *GyroscopeInstance, int16_t *Temperature) 
+static uint32_t mpu6050_read_sensor_data(AxisType *AccelerometerInstance, AxisType *GyroscopeInstance, float *Temperature) 
 {
     uint8_t readBuffer[6];
 	uint8_t regAddress;
@@ -234,9 +240,10 @@ static uint32_t mpu6050_read_raw(AxisType *AccelerometerInstance, AxisType *Gyro
 	errorCount = 0;
 
 	/* Combine the High and Low words (8bit values) of each accelerometer axis into int16 values */
-    AccelerometerInstance->X = ((readBuffer[0] << 8) | (readBuffer[1]));
-	AccelerometerInstance->Y = ((readBuffer[2] << 8) | (readBuffer[3]));
-	AccelerometerInstance->Z = ((readBuffer[4] << 8) | (readBuffer[5]));
+	/* Also divide by LSB sensitivity (16384 LSB/g by default) to get the value in 'g' unit */
+    AccelerometerInstance->X = ((int16_t)((readBuffer[0] << 8) | (readBuffer[1])))/16384.0F;
+	AccelerometerInstance->Y = ((int16_t)((readBuffer[2] << 8) | (readBuffer[3])))/16384.0F;
+	AccelerometerInstance->Z = ((int16_t)((readBuffer[4] << 8) | (readBuffer[5])))/16384.0F;
 
 	/* Registers: GYRO_XOUT_H (0x43), GYRO_XOUT_L, GYRO_YOUT_H, GYRO_YOUT_L, GYRO_ZOUT_H, and GYRO_ZOUT_L (0x48) */
 	/* Values: GYRO_XOUT[15:8], GYRO_XOUT[7:0], GYRO_YOUT[15:8], GYRO_YOUT[7:0], GYRO_ZOUT[15:8], GYRO_ZOUT[7:0] */ 
@@ -270,9 +277,10 @@ static uint32_t mpu6050_read_raw(AxisType *AccelerometerInstance, AxisType *Gyro
 	errorCount = 0;
 
 	/* Combine the High and Low words (8bit values) of each gyroscope axis into int16 values */
-    GyroscopeInstance->X = ((readBuffer[0] << 8) | (readBuffer[1]));
-	GyroscopeInstance->Y = ((readBuffer[2] << 8) | (readBuffer[3]));
-	GyroscopeInstance->Z = ((readBuffer[4] << 8) | (readBuffer[5]));
+	/* Also divide by LSB sensitivity (131 LSB/(deg/s) by default) to get the value in 'deg/s' unit */
+    GyroscopeInstance->X = ((int16_t)((readBuffer[0] << 8) | (readBuffer[1])))/131.0F;
+	GyroscopeInstance->Y = ((int16_t)((readBuffer[2] << 8) | (readBuffer[3])))/131.0F;
+	GyroscopeInstance->Z = ((int16_t)((readBuffer[4] << 8) | (readBuffer[5])))/131.0F;
 
 	/* Registers: TEMP_OUT_H (0x41) and TEMP_OUT_L (0x42) */
 	/* Values: TEMP_OUT[15:8], TEMP_OUT[7:0] */ 
@@ -308,7 +316,8 @@ static uint32_t mpu6050_read_raw(AxisType *AccelerometerInstance, AxisType *Gyro
 	}
 
 	/* Combine the High and Low words (8bit values) of the temperature into a int16 value */
-    *Temperature = (readBuffer[0] << 8) | (readBuffer[1]);
+	/* Also convert the raw value to actual Celsius degress with: (Temp / 340.0) + 36.53)*/
+    *Temperature = ((int16_t)((readBuffer[0] << 8) | (readBuffer[1]))/340.0F) + 36.53F;
 
 	return STATUS_SUCCESS;
 }
@@ -412,15 +421,15 @@ const unsigned long ulExpectedValue = 100UL;
 
 #ifdef i2c_default
 			static AxisType AccelerometerInstance, GyroscopeInstance; 
-			static int16_t Temperature;
+			static float Temperature;
 
 			/* TO DO - Add error logging to NVM, reset reactions, system status indicators such as LEDs or 7seg or LCD  */			
-			(void)mpu6050_read_raw(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
+			(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
 
 			/* Print MPU6050 data */
-			printf("Accelerometer: X = %d, Y = %d, Z = %d\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
-			printf("Gyroscope: X = %d, Y = %d, Z = %d\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
-			printf("Sensor Temperature: %f \n", (Temperature / 340.0) + 36.53);		
+			printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
+			printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
+			printf("Sensor Temperature[degC]: %f \n", Temperature);
 #endif
 			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
 			ulReceivedValue = 0U;
