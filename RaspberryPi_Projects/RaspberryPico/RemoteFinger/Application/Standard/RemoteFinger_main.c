@@ -54,6 +54,7 @@
 /* Priorities for the tasks */
 #define mainQUEUE_RECEIVE_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
 #define	mainQUEUE_SEND_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define bluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
 
 /* The rate at which data is sent to the queue. The rate is once every mainQUEUE_SEND_FREQUENCY_MS (once every 1000ms by default) */
 #define mainQUEUE_SEND_FREQUENCY_MS			( 1000 / portTICK_PERIOD_MS )
@@ -75,6 +76,7 @@ void RemoteFinger_main( void );
 /* Tasks declarations */
 static void prvQueueReceiveTask( void *pvParameters );
 static void prvQueueSendTask( void *pvParameters );
+static void BluetoothComms( void *pvParameters );
 
 /*-----------------------------------------------------------*/
 
@@ -358,6 +360,8 @@ void RemoteFinger_main( void )
 
 		xTaskCreate( prvQueueSendTask, "TX", configMINIMAL_STACK_SIZE, NULL, mainQUEUE_SEND_TASK_PRIORITY, NULL );
 
+		//TO DO - xTaskCreate( BluetoothComms, "BTE_TX_RX", configMINIMAL_STACK_SIZE, NULL, bluetoothComms_TASK_PRIORITY, NULL );
+
 		/* Start the tasks and timer running. */
 		printf("RTOS configuration finished, starting the scheduler... \n");
 		vTaskStartScheduler();
@@ -400,8 +404,8 @@ static void prvQueueSendTask( void *pvParameters )
 
 static void prvQueueReceiveTask( void *pvParameters )
 {
-unsigned long ulReceivedValue;
-const unsigned long ulExpectedValue = 100UL;
+	unsigned long ulReceivedValue;
+	const unsigned long ulExpectedValue = 100UL;
 
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
@@ -430,6 +434,11 @@ const unsigned long ulExpectedValue = 100UL;
 			printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
 			printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
 			printf("Sensor Temperature[degC]: %f \n", Temperature);
+
+			/* Notify bluetooth comms task that sensor data is available */
+			/* TO DO - Use a queue again? Create a task for it, implement bluetooth connectivity  */
+			//const unsigned long ulValueToSend = 50UL;
+			//xQueueSend( xQueue, &ulValueToSend, 0U );
 #endif
 			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
 			ulReceivedValue = 0U;
@@ -437,6 +446,32 @@ const unsigned long ulExpectedValue = 100UL;
 	}
 }
 
+static void BluetoothComms( void *pvParameters )
+{
+	unsigned long ulReceivedValue;
+	const unsigned long ulExpectedValue = 50UL;
+
+	/* Remove compiler warning about unused parameter. */
+	( void ) pvParameters;
+
+	for( ;; )
+	{
+		/* Wait until something arrives in the queue - this task will block
+		indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
+		FreeRTOSConfig.h. */
+		xQueueReceive( xQueue, &ulReceivedValue, portMAX_DELAY );
+	
+		/*  To get here something must have been received from the queue, but
+		is it the expected value?  If it is, perform task activities */
+		if( ulReceivedValue == ulExpectedValue )
+		{
+			printf("Yo I'm here - testing the new task \n");
+
+			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
+			ulReceivedValue = 0U;
+		}
+	}
+}
 
 
 
