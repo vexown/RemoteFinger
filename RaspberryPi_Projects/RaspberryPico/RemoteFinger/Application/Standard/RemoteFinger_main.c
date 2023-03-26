@@ -413,6 +413,7 @@ static void AcquireSensorData_Task( void *pvParameters )
 
 static void BluetoothComms_Task( void *pvParameters )
 {
+	AxisType AccelerometerInstance;
 	TickType_t xTaskStartTime;
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
@@ -422,17 +423,22 @@ static void BluetoothComms_Task( void *pvParameters )
 
 	for( ;; )
 	{
-		printf("ENTERING BLUETOOTH TASK \n");
-		printf(" -data sending will be done here- \n");
-
-		AxisType AccelerometerInstance;
-
 		xQueueReceive(xQueue, &AccelerometerInstance, portMAX_DELAY );
-		/* TO DO - This doesnt match up with data printed in Sensor Task - find out why */
-		printf("Example of sensor data received from the queue: %f \n", AccelerometerInstance.X);
 
-		/* Wait task period before acquiring new data */
-		vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
+		/* Execute this code only if sensor data in a queue message has been recieved*/
+		if( AccelerometerInstance.X != 0.0F )
+		{
+
+			printf("ENTERING BLUETOOTH TASK \n");
+			printf(" -data sending will be done here- \n");
+
+
+			/* TO DO - This doesnt match up with data printed in Sensor Task - find out why */
+			printf("Example of sensor data received from the queue: %f \n", AccelerometerInstance.X);
+
+			/* Wait task period before acquiring new data */
+			vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
+		}
 	}
 }
 
