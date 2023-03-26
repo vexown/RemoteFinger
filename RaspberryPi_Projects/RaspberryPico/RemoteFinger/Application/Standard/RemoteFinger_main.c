@@ -52,12 +52,8 @@
 #define MPU6050_SENSOR_DATA_READ_FAIL		 ((uint32_t)0xDEADBEEF)
 
 /* Priorities for the tasks */
-#define mainQUEUE_RECEIVE_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
-#define	mainQUEUE_SEND_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
-#define bluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
-
-/* The rate at which data is sent to the queue. The rate is once every mainQUEUE_SEND_FREQUENCY_MS (once every 1000ms by default) */
-#define mainQUEUE_SEND_FREQUENCY_MS			( 1000 / portTICK_PERIOD_MS )
+#define	AcquireSensorData_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define BluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
 
 /* The number of items the queue can hold */
 #define mainQUEUE_LENGTH					( 1 )
@@ -74,9 +70,8 @@ void RemoteFinger_main( void );
 /*-----------------------------------------------------------*/
 
 /* Tasks declarations */
-static void prvQueueReceiveTask( void *pvParameters );
-static void prvQueueSendTask( void *pvParameters );
-static void BluetoothComms( void *pvParameters );
+static void BluetoothComms_Task( void *pvParameters );
+static void AcquireSensorData_Task( void *pvParameters );
 
 /*-----------------------------------------------------------*/
 
@@ -351,16 +346,14 @@ void RemoteFinger_main( void )
 	if( xQueue != NULL )
 	{
 		/* Create the tasks */
-		xTaskCreate( prvQueueReceiveTask,				/* The function that implements the task. */
-					"Rx", 								/* The text name assigned to the task - for debug only as it is not used by the kernel. */
+		xTaskCreate( BluetoothComms_Task,				/* The function that implements the task. */
+					"BluetoothComms_Task", 								/* The text name assigned to the task - for debug only as it is not used by the kernel. */
 					configMINIMAL_STACK_SIZE, 			/* The size of the stack to allocate to the task. */
 					NULL, 								/* The parameter passed to the task - not used in this case. */
-					mainQUEUE_RECEIVE_TASK_PRIORITY, 	/* The priority assigned to the task. */
+					BluetoothComms_TASK_PRIORITY, 	/* The priority assigned to the task. */
 					NULL );								/* The task handle is not required, so NULL is passed. */
 
-		xTaskCreate( prvQueueSendTask, "TX", configMINIMAL_STACK_SIZE, NULL, mainQUEUE_SEND_TASK_PRIORITY, NULL );
-
-		//TO DO - xTaskCreate( BluetoothComms, "BTE_TX_RX", configMINIMAL_STACK_SIZE, NULL, bluetoothComms_TASK_PRIORITY, NULL );
+		xTaskCreate( AcquireSensorData_Task, "AcquireSensorData_Task", configMINIMAL_STACK_SIZE, NULL, AcquireSensorData_TASK_PRIORITY, NULL );
 
 		/* Start the tasks and timer running. */
 		printf("RTOS configuration finished, starting the scheduler... \n");
@@ -376,100 +369,56 @@ void RemoteFinger_main( void )
 	for( ;; );
 }
 
-static void prvQueueSendTask( void *pvParameters )
+static void AcquireSensorData_Task( void *pvParameters )
 {
-	TickType_t xNextWakeTime;
-	const unsigned long ulValueToSend = 100UL;
-
-	/* Remove compiler warning about unused parameter. */
-	( void ) pvParameters;
-
-	/* Initialise xNextWakeTime - this only needs to be done once. */
-	xNextWakeTime = xTaskGetTickCount();
-
-	for( ;; )
-	{
-		/* Place this task in the blocked state until it is time to run again. */
-		int32_t SendToQueue_freq_ms = mainQUEUE_SEND_FREQUENCY_MS/10;
-		vTaskDelayUntil( &xNextWakeTime, SendToQueue_freq_ms );
-		printf("SendToQueue_freq_ms = %u ms\n\n", SendToQueue_freq_ms);
-		
-		/* Send to the queue - causing the queue receive task to unblock and
-		toggle the LED.  0 is used as the block time so the sending operation
-		will not block - it shouldn't need to block as the queue should always
-		be empty at this point in the code. */
-		xQueueSend( xQueue, &ulValueToSend, 0U );
-	}
-}
-
-static void prvQueueReceiveTask( void *pvParameters )
-{
-	unsigned long ulReceivedValue;
-	const unsigned long ulExpectedValue = 100UL;
-
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
 
 	for( ;; )
 	{
-		/* Wait until something arrives in the queue - this task will block
-		indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
-		FreeRTOSConfig.h. */
-		xQueueReceive( xQueue, &ulReceivedValue, portMAX_DELAY );
+		printf("ENTERING SENSOR TASK \n");
 
-		/*  To get here something must have been received from the queue, but
-		is it the expected value?  If it is, perform task activities */
-		if( ulReceivedValue == ulExpectedValue )
-		{
-			gpio_xor_mask( 1u << PICO_DEFAULT_LED_PIN );
+		gpio_xor_mask( 1u << PICO_DEFAULT_LED_PIN );
 
 #ifdef i2c_default
-			static AxisType AccelerometerInstance, GyroscopeInstance; 
-			static float Temperature;
+		static AxisType AccelerometerInstance, GyroscopeInstance; 
+		static float Temperature;
 
-			/* TO DO - Add error logging to NVM, reset reactions, system status indicators such as LEDs or 7seg or LCD  */			
-			(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
+		/* TO DO - Add error logging to NVM, reset reactions, system status indicators such as LEDs or 7seg or LCD  */			
+		(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
 
-			/* Print MPU6050 data */
-			printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
-			printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
-			printf("Sensor Temperature[degC]: %f \n", Temperature);
+		/* Print MPU6050 data */
+		printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
+		printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
+		printf("Sensor Temperature[degC]: %f \n", Temperature);
 
-			/* Notify bluetooth comms task that sensor data is available */
-			/* TO DO - Use a queue again? Create a task for it, implement bluetooth connectivity  */
-			//const unsigned long ulValueToSend = 50UL;
-			//xQueueSend( xQueue, &ulValueToSend, 0U );
+		/* Send sensor data to the queue */
+		xQueueSend(xQueue, &AccelerometerInstance, portMAX_DELAY);
+
+		/* Wait for some time before acquiring new data */
+		vTaskDelay(pdMS_TO_TICKS(100));
 #endif
-			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
-			ulReceivedValue = 0U;
-		}
+		
 	}
+
 }
 
-static void BluetoothComms( void *pvParameters )
+static void BluetoothComms_Task( void *pvParameters )
 {
-	unsigned long ulReceivedValue;
-	const unsigned long ulExpectedValue = 50UL;
-
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
 
 	for( ;; )
 	{
-		/* Wait until something arrives in the queue - this task will block
-		indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
-		FreeRTOSConfig.h. */
-		xQueueReceive( xQueue, &ulReceivedValue, portMAX_DELAY );
-	
-		/*  To get here something must have been received from the queue, but
-		is it the expected value?  If it is, perform task activities */
-		if( ulReceivedValue == ulExpectedValue )
-		{
-			printf("Yo I'm here - testing the new task \n");
+		printf("ENTERING BLUETOOTH TASK \n");
+		printf(" -data sending will be done here- \n");
 
-			/* Clear the variable so the next time this task runs a correct value needs to be supplied again */
-			ulReceivedValue = 0U;
-		}
+		AxisType AccelerometerInstance;
+
+		xQueueReceive(xQueue, &AccelerometerInstance, portMAX_DELAY );
+		printf("Example of sensor data received from the queue: %f \n", AccelerometerInstance.X);
+
+		vTaskDelay(pdMS_TO_TICKS(150));
 	}
 }
 
