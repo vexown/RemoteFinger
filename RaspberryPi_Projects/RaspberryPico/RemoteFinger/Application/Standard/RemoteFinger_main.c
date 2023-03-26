@@ -55,6 +55,10 @@
 #define	AcquireSensorData_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define BluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
 
+/* Task periods (ms) */
+#define AcquireSensorData_TASK_PERIOD		( 100 )
+#define BluetoothComms_TASK_PERIOD			( 140 )
+
 /* The number of items the queue can hold */
 #define mainQUEUE_LENGTH					( 1 )
 
@@ -371,8 +375,12 @@ void RemoteFinger_main( void )
 
 static void AcquireSensorData_Task( void *pvParameters )
 {
+	TickType_t xTaskStartTime;
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
+
+	const TickType_t xTaskPeriod = pdMS_TO_TICKS(AcquireSensorData_TASK_PERIOD);
+	xTaskStartTime = xTaskGetTickCount();
 
 	for( ;; )
 	{
@@ -395,8 +403,8 @@ static void AcquireSensorData_Task( void *pvParameters )
 		/* Send sensor data to the queue */
 		xQueueSend(xQueue, &AccelerometerInstance, portMAX_DELAY);
 
-		/* Wait for some time before acquiring new data */
-		vTaskDelay(pdMS_TO_TICKS(100));
+		/* Wait task period before sending new data */
+		vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
 #endif
 		
 	}
@@ -405,8 +413,12 @@ static void AcquireSensorData_Task( void *pvParameters )
 
 static void BluetoothComms_Task( void *pvParameters )
 {
+	TickType_t xTaskStartTime;
 	/* Remove compiler warning about unused parameter. */
 	( void ) pvParameters;
+
+	const TickType_t xTaskPeriod = pdMS_TO_TICKS(BluetoothComms_TASK_PERIOD);
+	xTaskStartTime = xTaskGetTickCount();
 
 	for( ;; )
 	{
@@ -416,9 +428,11 @@ static void BluetoothComms_Task( void *pvParameters )
 		AxisType AccelerometerInstance;
 
 		xQueueReceive(xQueue, &AccelerometerInstance, portMAX_DELAY );
+		/* TO DO - This doesnt match up with data printed in Sensor Task - find out why */
 		printf("Example of sensor data received from the queue: %f \n", AccelerometerInstance.X);
 
-		vTaskDelay(pdMS_TO_TICKS(150));
+		/* Wait task period before acquiring new data */
+		vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
 	}
 }
 
