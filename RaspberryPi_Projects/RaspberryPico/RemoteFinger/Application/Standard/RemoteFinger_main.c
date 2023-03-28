@@ -52,12 +52,12 @@
 #define MPU6050_SENSOR_DATA_READ_FAIL		 ((uint32_t)0xDEADBEEF)
 
 /* Priorities for the tasks */
-#define	AcquireSensorData_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
-#define BluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
+#define	AcquireSensorData_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
+#define BluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
 /* Task periods (ms) */
 #define AcquireSensorData_TASK_PERIOD		( 100 )
-#define BluetoothComms_TASK_PERIOD			( 140 )
+#define BluetoothComms_TASK_PERIOD			( 100 )
 
 /* The number of items the queue can hold */
 #define mainQUEUE_LENGTH					( 1 )
@@ -74,8 +74,8 @@ void RemoteFinger_main( void );
 /*-----------------------------------------------------------*/
 
 /* Tasks declarations */
-static void BluetoothComms_Task( void *pvParameters );
-static void AcquireSensorData_Task( void *pvParameters );
+static void BluetoothComms_Task();
+static void AcquireSensorData_Task();
 
 /*-----------------------------------------------------------*/
 
@@ -373,19 +373,19 @@ void RemoteFinger_main( void )
 	for( ;; );
 }
 
-static void AcquireSensorData_Task( void *pvParameters )
+static void AcquireSensorData_Task()
 {
 	TickType_t xTaskStartTime;
-	/* Remove compiler warning about unused parameter. */
-	( void ) pvParameters;
-
 	const TickType_t xTaskPeriod = pdMS_TO_TICKS(AcquireSensorData_TASK_PERIOD);
+
 	xTaskStartTime = xTaskGetTickCount();
 
 	for( ;; )
 	{
 		printf("ENTERING SENSOR TASK \n");
+		printf("Task Start Time: %x \n", xTaskStartTime);
 
+		/* Toggle the onboard LED to signal data reading */
 		gpio_xor_mask( 1u << PICO_DEFAULT_LED_PIN );
 
 #ifdef i2c_default
@@ -402,43 +402,44 @@ static void AcquireSensorData_Task( void *pvParameters )
 
 		/* Send sensor data to the queue */
 		xQueueSend(xQueue, &AccelerometerInstance, portMAX_DELAY);
-
-		/* Wait task period before sending new data */
-		vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
 #endif
-		
+		/* Wait task period before reading and sending new data */
+		vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
 	}
 
 }
 
-static void BluetoothComms_Task( void *pvParameters )
+static void BluetoothComms_Task()
 {
 	AxisType AccelerometerInstance;
 	TickType_t xTaskStartTime;
-	/* Remove compiler warning about unused parameter. */
-	( void ) pvParameters;
-
 	const TickType_t xTaskPeriod = pdMS_TO_TICKS(BluetoothComms_TASK_PERIOD);
+
 	xTaskStartTime = xTaskGetTickCount();
 
 	for( ;; )
 	{
+		/* xQueueReceive will block this task (indefinitely, due to portMAX_DELAY) 
+		 * and not execute any further instructions until a message is received on the queue */
 		xQueueReceive(xQueue, &AccelerometerInstance, portMAX_DELAY );
 
-		/* Execute this code only if sensor data in a queue message has been recieved*/
+		/* Execute this code only if sensor data is valid,
+		 * clean 0.0 would only happen if sensor is working incorrectly, I think */
 		if( AccelerometerInstance.X != 0.0F )
 		{
 
 			printf("ENTERING BLUETOOTH TASK \n");
+			printf("Task Start Time: %x \n", xTaskStartTime);
 			printf(" -data sending will be done here- \n");
 
-
-			/* TO DO - This doesnt match up with data printed in Sensor Task - find out why */
-			printf("Example of sensor data received from the queue: %f \n", AccelerometerInstance.X);
-
-			/* Wait task period before acquiring new data */
-			vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
+			printf("Example of sensor data received from the queue: X = %f \n", AccelerometerInstance.X);
 		}
+		else
+		{
+			printf("\n\n WARNING - Invalid sensor data \n\n");
+		}
+		/* Wait task period before acquiring new data */
+		vTaskDelayUntil(&xTaskStartTime, xTaskPeriod);
 	}
 }
 
