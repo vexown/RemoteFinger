@@ -24,7 +24,9 @@
  *
  * 1 tab == 4 spaces!
  *******************************************************************************/
-
+/********************************* TASKS SCHEDULE *******************************/
+/* BluetoothComms_Task - runs every 100ms, priority MIN+1, conditional execution based on receiving Queue message
+ * AcquireSensorData_Task - runs every 100ms, priority MAX+2
 /********************************* HARDWARE ************************************/
 /* MPU6050 - world’s first integrated 6-axis MotionTracking device that combines
  * a 3-axis gyroscope, 3-axis accelerometer, and a Digital Motion Processor™ (DMP) 
