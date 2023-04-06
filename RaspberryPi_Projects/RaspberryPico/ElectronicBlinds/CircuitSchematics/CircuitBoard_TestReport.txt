@@ -1,6 +1,6 @@
-1. Ground connections - PASSED/FAILED
-2. Vcc connections - PASSED/FAILED
-3. Transistors pins check - PASSED/FAILED
-4. Connections between components - PASSED/FAILED
-5. Shorts between lines - PASSED/FAILED
+1. Ground connections - PASSED
+2. Vcc connections - PASSED
+3. Transistors pins check - PASSED
+4. Connections between components - PASSED
+5. Shorts between lines - PASSED
 
