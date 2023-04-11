@@ -1,7 +1,0 @@
-1. Ground connections - PASSED
-2. Vcc connections - PASSED
-3. Transistors pins check - PASSED
-4. Connections between components - PASSED
-5. Shorts between lines - PASSED
-6. Output voltage check with 12V input and IN1/IN2 3.3V - PASSED
-
