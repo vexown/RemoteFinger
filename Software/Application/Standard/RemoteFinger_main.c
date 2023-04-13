@@ -28,7 +28,8 @@
 /* BluetoothComms_Task - runs every 100ms, priority MIN+1, conditional execution based on receiving Queue message
  * AcquireSensorData_Task - runs every 100ms, priority MAX+2
 /********************************* HARDWARE ************************************/
-/* MPU6050 - world’s first integrated 6-axis MotionTracking device that combines
+/* Raspberry Pico W - RP2040 raspberry microcontroller board
+ * MPU6050 - world’s first integrated 6-axis MotionTracking device that combines
  * a 3-axis gyroscope, 3-axis accelerometer, and a Digital Motion Processor™ (DMP) 
  * Datasheet: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf
  * Register map: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf
@@ -47,6 +48,7 @@
 #include "pico/binary_info.h"
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"
+#include "pico/cyw43_arch.h"
 
 /* Error handling macros */
 #define STATUS_SUCCESS						 0
@@ -388,7 +390,7 @@ static void AcquireSensorData_Task()
 		printf("Task Start Time: %x \n", xTaskStartTime);
 
 		/* Toggle the onboard LED to signal data reading */
-		gpio_xor_mask( 1u << PICO_DEFAULT_LED_PIN );
+		cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
 #ifdef i2c_default
 		static AxisType AccelerometerInstance, GyroscopeInstance; 
