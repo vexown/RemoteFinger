@@ -13,7 +13,9 @@ fi
 #configure build directory
 echo Configuring the build directory...
 cd build
-cmake ..
+#When building for a board other than the Raspberry Pi Pico, you should pass `-DPICO_BOARD=board_name` 
+#to the `cmake` command, e.g. `cmake -DPICO_BOARD=pico_w ..` to configure the SDK and build options accordingly for that particular board.
+cmake -DPICO_BOARD=pico_w ..
 
 #build the project
 echo Building...

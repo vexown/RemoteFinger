@@ -26,6 +26,7 @@
         "semphr.h": "c",
         "gpio.h": "c",
         "stdlib.h": "c",
-        "binary_info.h": "c"
+        "binary_info.h": "c",
+        "i2c.h": "c"
     }
 }
