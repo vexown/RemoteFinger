@@ -19,6 +19,13 @@ set(CMAKE_CXX_STANDARD 17)
 message("########## pico_sdk_init macro - start ##########")
 pico_sdk_init()
 
+if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
+message("PICO_CYW43 SUPPORTED")
+else()
+message("PICO_CYW43 NOT SUPPORTED!")
+message("Current PICO_BOARD: '${PICO_BOARD}' ")
+endif()
+
 add_subdirectory(Standard)
 
 message("########## TOP CMakeLists.txt - end ##########")

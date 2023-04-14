@@ -45,10 +45,10 @@
 
 /* SDK includes */
 #include "pico/stdlib.h"
+#include "pico/cyw43_arch.h"
 #include "pico/binary_info.h"
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"
-#include "pico/cyw43_arch.h"
 
 /* Error handling macros */
 #define STATUS_SUCCESS						 0
@@ -379,6 +379,7 @@ void RemoteFinger_main( void )
 
 static void AcquireSensorData_Task()
 {
+	static bool pinState;
 	TickType_t xTaskStartTime;
 	const TickType_t xTaskPeriod = pdMS_TO_TICKS(AcquireSensorData_TASK_PERIOD);
 
@@ -389,8 +390,11 @@ static void AcquireSensorData_Task()
 		printf("ENTERING SENSOR TASK \n");
 		printf("Task Start Time: %x \n", xTaskStartTime);
 
-		/* Toggle the onboard LED to signal data reading */
-		cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+		/* Toggle the onboard LED (which on Pico W is controlled via CYW43's pin) to signal data reading */
+		pinState = !pinState;
+		cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, pinState);
+		printf("pinState = %d \n", (int)pinState);
+
 
 #ifdef i2c_default
 		static AxisType AccelerometerInstance, GyroscopeInstance; 

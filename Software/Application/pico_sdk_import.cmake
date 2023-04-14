@@ -14,7 +14,7 @@ if (DEFINED ENV{PICO_SDK_PATH} AND (NOT PICO_SDK_PATH))
 endif ()
 
 # if the PICO_SDK_PATH environment variable is not set, the user could set it manually adding a path variable when running 
-# the cmake configuration command (the usual is "cmake .." but in this case it would be cmake "-DPICO_SDK_PATH=/path/to/sdk .. ")
+# the cmake configuration command (the usual is "cmake .." but in this case it would be "cmake -DPICO_SDK_PATH=/path/to/sdk .. ")
 # This is then cached here. CACHE option causes the variable to be stored in the CMake cache. 
 # The CMake cache is a file that stores the values of CMake variables so that they can be reused between runs of CMake.
 set(PICO_SDK_PATH "${PICO_SDK_PATH}" CACHE PATH "Path to the Raspberry Pi Pico SDK" FORCE)

@@ -40,6 +40,7 @@
 /* Library includes. */
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/cyw43_arch.h"
 
 /*-----------------------------------------------------------*/
 
@@ -70,8 +71,25 @@ int main( void )
 
 static void prvSetupHardware( void )
 {
+    bool stdio_init_status;
+    int cyw43_init_status;
+    
     /* STD I/O init - in this case just UART */
-    stdio_init_all();
+    stdio_init_status = stdio_init_all();
+    /* Init of the Infineon's CYW43439 BT/Wifi module */
+    cyw43_init_status = cyw43_arch_init();
+
+    if((stdio_init_status != true) || (cyw43_init_status != 0))
+    {
+        printf("Hardware setup failed \n");
+        printf("stdio_init_status = %d \n", (int)stdio_init_status);
+        printf("cyw43_init_status = %d \n", cyw43_init_status);
+    }
+    else
+    {
+        printf("Hardware setup successful \n");
+    }
+
 }
 /*-----------------------------------------------------------*/
 
