@@ -1,14 +1,14 @@
 
 message("########## Application/Standard CMakeLists.txt - start ##########")
 add_executable(RemoteFinger_main
-        main.c
-        RemoteFinger_main.c
+        Source/main.c
+        Source/RemoteFinger_main.c
         )
 
 target_compile_definitions(RemoteFinger_main PRIVATE)
 
 target_include_directories(RemoteFinger_main PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/Include
         ${CMAKE_CURRENT_LIST_DIR}/../../Common/include)
 
 #pull in common dependencies such as pico stdlib, FreeRTOS kernel stuff and additional i2c hardware support

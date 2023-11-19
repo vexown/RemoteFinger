@@ -26,6 +26,6 @@ message("PICO_CYW43 NOT SUPPORTED!")
 message("Current PICO_BOARD: '${PICO_BOARD}' ")
 endif()
 
-add_subdirectory(Standard)
+add_subdirectory(SwComponents)
 
 message("########## TOP CMakeLists.txt - end ##########")
