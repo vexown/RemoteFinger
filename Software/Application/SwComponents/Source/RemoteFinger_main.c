@@ -33,6 +33,10 @@
  * a 3-axis gyroscope, 3-axis accelerometer, and a Digital Motion Processor™ (DMP) 
  * Datasheet: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf
  * Register map: https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf
+ * Bluetooth module - CYW43439 device from Infineon (built in on Pico W board): 
+ * 					- Infineon site: https://www.infineon.com/cms/en/product/wireless-connectivity/airoc-wi-fi-plus-bluetooth-combos/wi-fi-4-802.11n/cyw43439/
+ * 					- How to use it: https://datasheets.raspberrypi.com/picow/connecting-to-the-internet-with-pico-w.pdf
+ * 
  *******************************************************************************/
 
 /* Standard includes. */
@@ -45,10 +49,15 @@
 
 /* SDK includes */
 #include "pico/stdlib.h"
-#include "pico/cyw43_arch.h"
 #include "pico/binary_info.h"
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"
+#include "btstack.h"
+#include "pico/cyw43_arch.h"
+#include "pico/btstack_cyw43.h"
+
+/* Task includes */
+#include "RemoteFinger_main.h"
 
 /* Error handling macros */
 #define STATUS_SUCCESS						 0
@@ -60,7 +69,7 @@
 #define BluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
 /* Task periods (ms) */
-#define AcquireSensorData_TASK_PERIOD		( 100 )
+#define AcquireSensorData_TASK_PERIOD		( 1 )
 #define BluetoothComms_TASK_PERIOD			( 100 )
 
 /* The number of items the queue can hold */
@@ -69,6 +78,11 @@
 /* By default the MPU6050 devices are on bus address 0x68 */ 
 #define MPU6050_I2C_ADDRESS   				 0x68
 #define I2C_BAUD_RATE_400KHz				 ((uint32_t)4E5)
+
+#define HEARTBEAT_PERIOD_MS 1000
+
+static btstack_timer_source_t heartbeat;
+static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 /*-----------------------------------------------------------*/
 
@@ -328,6 +342,28 @@ static uint32_t mpu6050_read_sensor_data(AxisType *AccelerometerInstance, AxisTy
 }
 #endif
 
+static void heartbeat_handler(struct btstack_timer_source *ts) 
+{
+    static uint32_t counter = 0;
+    counter++;
+
+    // Update the temp every 10s
+    if (counter % 10 == 0) {
+        if (le_notification_enabled) {
+            att_server_request_can_send_now_event(con_handle);
+        }
+    }
+
+    // Invert the led
+    static int led_on = true;
+    led_on = !led_on;
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+
+    // Restart timer
+    btstack_run_loop_set_timer(ts, HEARTBEAT_PERIOD_MS);
+    btstack_run_loop_add_timer(ts);
+}
+
 void RemoteFinger_main( void )
 {
 #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
@@ -346,6 +382,30 @@ void RemoteFinger_main( void )
     (void)mpu6050_reset();
 	printf("MPU6050 config completed \n");
 #endif
+
+	printf("Setting up Bluetooth... \n"); // Inform the user that the Bluetooth setup process is beginning
+
+	l2cap_init(); // Initialize the L2CAP (Logical Link Control and Adaptation Protocol) layer, which handles data communication over Bluetooth
+
+	sm_init(); // Initialize the SM (Security Manager) layer, which manages Bluetooth security features such as encryption and authentication
+
+	att_server_init(profile_data, att_read_callback, att_write_callback); // Initialize the ATT (Attribute Protocol Server) layer, which handles the management of services and attributes for Bluetooth data exchange
+
+	// Register callback functions to receive Bluetooth events
+	hci_event_callback_registration.callback = &packet_handler; // Register `packet_handler` function to receive HCI (Host Controller Interface) events, providing information about Bluetooth system state and operation
+	hci_add_event_handler(&hci_event_callback_registration); // Add the registered callback to the list of event handlers
+
+	att_server_register_packet_handler(packet_handler); // Register `packet_handler` function to receive ATT events, related to the management of ATT services and attributes
+
+	// Set one-shot timer for periodic task execution
+	heartbeat.process = &heartbeat_handler; // Set the `heartbeat_handler` function as the processing function for the timer
+	btstack_run_loop_set_timer(&heartbeat, HEARTBEAT_PERIOD_MS); // Set the timer period to `HEARTBEAT_PERIOD_MS` milliseconds
+	btstack_run_loop_add_timer(&heartbeat); // Add the timer to the run loop, ensuring it triggers periodically
+
+	// Power on Bluetooth functionality
+	hci_power_control(HCI_POWER_ON); // Enable Bluetooth communication, allowing the Raspberry Pi W to discover and connect to other Bluetooth devices
+
+	printf("Bluetooth configured! \n");
 
 	printf("Setting up the RTOS configuration... \n");
     /* Create the queue. */
@@ -387,14 +447,12 @@ static void AcquireSensorData_Task()
 
 	for( ;; )
 	{
-		printf("ENTERING SENSOR TASK \n");
-		printf("Task Start Time: %x \n", xTaskStartTime);
+		//printf("ENTERING SENSOR TASK \n");
+		//printf("Task Start Time: %x \n", xTaskStartTime);
 
 		/* Toggle the onboard LED (which on Pico W is controlled via CYW43's pin) to signal data reading */
 		pinState = !pinState;
 		cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, pinState);
-		printf("pinState = %d \n", (int)pinState);
-
 
 #ifdef i2c_default
 		static AxisType AccelerometerInstance, GyroscopeInstance; 
@@ -404,9 +462,10 @@ static void AcquireSensorData_Task()
 		(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
 
 		/* Print MPU6050 data */
-		printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
-		printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
-		printf("Sensor Temperature[degC]: %f \n", Temperature);
+		//printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
+		printf("%f, %f, %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
+		//printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
+		//printf("Sensor Temperature[degC]: %f \n", Temperature);
 
 		/* Send sensor data to the queue */
 		xQueueSend(xQueue, &AccelerometerInstance, portMAX_DELAY);
@@ -436,11 +495,11 @@ static void BluetoothComms_Task()
 		if( AccelerometerInstance.X != 0.0F )
 		{
 
-			printf("ENTERING BLUETOOTH TASK \n");
-			printf("Task Start Time: %x \n", xTaskStartTime);
-			printf(" -data sending will be done here- \n");
+			//printf("ENTERING BLUETOOTH TASK \n");
+			//printf("Task Start Time: %x \n", xTaskStartTime);
+			//printf(" -data sending will be done here- \n");
 
-			printf("Example of sensor data received from the queue: X = %f \n", AccelerometerInstance.X);
+			//printf("Example of sensor data received from the queue: X = %f \n", AccelerometerInstance.X);
 		}
 		else
 		{
