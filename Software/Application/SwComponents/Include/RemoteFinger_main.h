@@ -3,7 +3,7 @@
 
 extern int le_notification_enabled;
 extern hci_con_handle_t con_handle;
-extern float current_temp;
+extern float current_temp[3];
 extern uint8_t const profile_data[];
 
 void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);

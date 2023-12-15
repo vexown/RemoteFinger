@@ -372,7 +372,10 @@ void poll_temp(void)
 
 	(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
 
-    current_temp = AccelerometerInstance.X;
+    current_temp[0] = AccelerometerInstance.X;
+    current_temp[1] = AccelerometerInstance.Y;
+    current_temp[2] = AccelerometerInstance.Z;
+
 }
 
 void RemoteFinger_main( void )
