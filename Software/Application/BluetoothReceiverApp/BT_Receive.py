@@ -1,12 +1,16 @@
 from bluepy.btle import UUID, Peripheral, DefaultDelegate
 import struct
 import tkinter as tk
+import tkinter.messagebox
+import time
+import sys
 
 class MPU6050ReadDelegate(DefaultDelegate):
-    def __init__(self, canvas, pointer):
+    def __init__(self, canvas, pointer, target):
         DefaultDelegate.__init__(self)
         self.canvas = canvas
         self.pointer = pointer
+        self.target = target
 
     def handleNotification(self, cHandle, data):
         MPU6050_array = struct.unpack('<' + 'f' * (len(data) // 4), data)
@@ -31,6 +35,12 @@ class MPU6050ReadDelegate(DefaultDelegate):
             self.canvas.move(self.pointer, accelerometer_data[0] * 10, accelerometer_data[1] * 10)
             self.canvas.update()
 
+        # Check if the pointer has reached the target
+        if abs(new_x - self.target[0]) < 10 and abs(new_y - self.target[1]) < 10:
+            tkinter.messagebox.showinfo("Game Over", "You win!")
+            window.destroy()
+            sys.exit()
+
 
 device_address = '28:CD:C1:03:F0:24'
 TEMP_READ_UUID = "181a"
@@ -45,6 +55,9 @@ canvas.pack()
 
 # Draw a circle on the canvas to represent the pointer
 pointer = canvas.create_oval(250, 250, 260, 260, fill='black')
+
+# Draw a circle on the canvas to represent the target
+target = canvas.create_oval(100, 100, 110, 110, fill='red')
 
 # Connect to the device
 print("Connecting to the device...")
@@ -65,7 +78,7 @@ descriptor.write(b"\x01\x00", True)
 
 # Set up notification handling
 print("Setting up notification handling...")
-delegate = MPU6050ReadDelegate(canvas, pointer)
+delegate = MPU6050ReadDelegate(canvas, pointer, (105, 105))
 peripheral.setDelegate(delegate)
 
 # Listen for notifications
