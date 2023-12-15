@@ -22,7 +22,7 @@ static const uint8_t adv_data_len = sizeof(adv_data);
 
 int le_notification_enabled;
 hci_con_handle_t con_handle;
-uint16_t current_temp = 69;
+float current_temp;
 
 void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     UNUSED(size);
@@ -35,7 +35,7 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
         case BTSTACK_EVENT_STATE:
             if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) return;
             gap_local_bd_addr(local_addr);
-            printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
+            //printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
 
             // setup advertisements
             uint16_t adv_int_min = 800;
@@ -47,6 +47,8 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
             assert(adv_data_len <= 31); // ble limitation
             gap_advertisements_set_data(adv_data_len, (uint8_t*) adv_data);
             gap_advertisements_enable(1);
+
+            poll_temp();
 
             break;
         case HCI_EVENT_DISCONNECTION_COMPLETE:
@@ -74,7 +76,7 @@ int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, 
     UNUSED(offset);
     UNUSED(buffer_size);
     
-    if (att_handle != 0xA) return 0;
+    if (att_handle != ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_CLIENT_CONFIGURATION_HANDLE) return 0;
     le_notification_enabled = little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
     con_handle = connection_handle;
     if (le_notification_enabled) {

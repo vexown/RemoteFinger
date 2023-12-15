@@ -79,7 +79,7 @@
 #define MPU6050_I2C_ADDRESS   				 0x68
 #define I2C_BAUD_RATE_400KHz				 ((uint32_t)4E5)
 
-#define HEARTBEAT_PERIOD_MS 1000
+#define HEARTBEAT_PERIOD_MS 10
 
 static btstack_timer_source_t heartbeat;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
@@ -349,6 +349,7 @@ static void heartbeat_handler(struct btstack_timer_source *ts)
 
     // Update the temp every 10s
     if (counter % 10 == 0) {
+        poll_temp();
         if (le_notification_enabled) {
             att_server_request_can_send_now_event(con_handle);
         }
@@ -362,6 +363,16 @@ static void heartbeat_handler(struct btstack_timer_source *ts)
     // Restart timer
     btstack_run_loop_set_timer(ts, HEARTBEAT_PERIOD_MS);
     btstack_run_loop_add_timer(ts);
+}
+
+void poll_temp(void) 
+{
+	static AxisType AccelerometerInstance, GyroscopeInstance; 
+	static float Temperature;
+
+	(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
+
+    current_temp = AccelerometerInstance.X;
 }
 
 void RemoteFinger_main( void )
@@ -383,6 +394,7 @@ void RemoteFinger_main( void )
 	printf("MPU6050 config completed \n");
 #endif
 
+#if 1
 	printf("Setting up Bluetooth... \n"); // Inform the user that the Bluetooth setup process is beginning
 
 	l2cap_init(); // Initialize the L2CAP (Logical Link Control and Adaptation Protocol) layer, which handles data communication over Bluetooth
@@ -406,6 +418,9 @@ void RemoteFinger_main( void )
 	hci_power_control(HCI_POWER_ON); // Enable Bluetooth communication, allowing the Raspberry Pi W to discover and connect to other Bluetooth devices
 
 	printf("Bluetooth configured! \n");
+
+	while(1);
+#endif
 
 	printf("Setting up the RTOS configuration... \n");
     /* Create the queue. */
@@ -459,11 +474,11 @@ static void AcquireSensorData_Task()
 		static float Temperature;
 
 		/* TO DO - Add error logging to NVM, reset reactions, system status indicators such as LEDs or 7seg or LCD  */			
-		(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
+		//(void)mpu6050_read_sensor_data(&AccelerometerInstance, &GyroscopeInstance, &Temperature);
 
 		/* Print MPU6050 data */
 		//printf("Accelerometer[g]: X = %f, Y = %f, Z = %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
-		printf("%f, %f, %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
+		//printf("%f, %f, %f\n", AccelerometerInstance.X, AccelerometerInstance.Y, AccelerometerInstance.Z);
 		//printf("Gyroscope[deg/s]: X = %f, Y = %f, Z = %f\n", GyroscopeInstance.X, GyroscopeInstance.Y, GyroscopeInstance.Z);
 		//printf("Sensor Temperature[degC]: %f \n", Temperature);
 
