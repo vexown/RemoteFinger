@@ -10,8 +10,8 @@ def connect_to_bluetooth(max_attempts=5):
     global characteristic
 
     device_address = '28:CD:C1:03:F0:24'
-    TEMP_READ_UUID = "181a"
-    CHARACTERISTIC_UUID = "00002a6e-0000-1000-8000-00805f9b34fb"
+    HID_SERVICE_UUID = "1812" # ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE - 0x1812
+    POSITION_3D_CHARACTERISTIC_UUID = "00002A30-0000-1000-8000-00805F9B34FB" # ORG_BLUETOOTH_CHARACTERISTIC_POSITION_3D - 0x2A30 (Assigned Number)
 
     attempts = 0
     connected = False
@@ -23,8 +23,8 @@ def connect_to_bluetooth(max_attempts=5):
 
             # Discover services and characteristics
             print("Discovering services and characteristics...")
-            service_uuid = UUID(TEMP_READ_UUID)
-            characteristic_uuid = UUID(CHARACTERISTIC_UUID)
+            service_uuid = UUID(HID_SERVICE_UUID)
+            characteristic_uuid = UUID(POSITION_3D_CHARACTERISTIC_UUID)
 
             service = peripheral.getServiceByUUID(service_uuid)
             characteristic = service.getCharacteristics(characteristic_uuid)[0]
@@ -36,9 +36,8 @@ def connect_to_bluetooth(max_attempts=5):
             time.sleep(2)  # Wait for a while before retrying
 
     if connected:
-        # Bluetooth connection successful, proceed with your game or other logic
-        print("Bluetooth connection successful. Starting the game or other logic here...")
-        # Call your game logic or other functionalities here
+        # Bluetooth connection successful
+        print("Bluetooth connection successful.")
     else:
         print("Failed to connect to Bluetooth after multiple attempts.")
         sys.exit(1)

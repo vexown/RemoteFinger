@@ -22,7 +22,7 @@ target_link_libraries(RemoteFinger_main
                         FreeRTOS-Kernel-Heap1)
 pico_add_extra_outputs(RemoteFinger_main)
 
-pico_btstack_make_gatt_header(RemoteFinger_main PRIVATE "${CMAKE_CURRENT_LIST_DIR}/Source/temp_sensor.gatt")
+pico_btstack_make_gatt_header(RemoteFinger_main PRIVATE "${CMAKE_CURRENT_LIST_DIR}/Source/BluetoothProfileConfig.cfg")
 
 message("########## Application/Standard CMakeLists.txt - end ##########")
 
