@@ -69,7 +69,7 @@
 #define BluetoothComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
 /* Task periods (ms) */
-#define AcquireSensorData_TASK_PERIOD		( 1 )
+#define AcquireSensorData_TASK_PERIOD		( 10 )
 #define BluetoothComms_TASK_PERIOD			( 100 )
 
 /* The number of items the queue can hold */
@@ -342,29 +342,6 @@ static uint32_t mpu6050_read_sensor_data(AxisType *AccelerometerInstance, AxisTy
 }
 #endif
 
-static void heartbeat_handler(struct btstack_timer_source *ts) 
-{
-    static uint32_t counter = 0;
-    counter++;
-
-    // Update the temp every 10s
-    if (counter % 10 == 0) {
-		poll_temp();
-        if (le_notification_enabled) {
-            att_server_request_can_send_now_event(con_handle);
-        }
-    }
-
-    // Invert the led
-    static int led_on = true;
-    led_on = !led_on;
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
-
-    // Restart timer
-    btstack_run_loop_set_timer(ts, HEARTBEAT_PERIOD_MS);
-    btstack_run_loop_add_timer(ts);
-}
-
 void poll_temp(void) 
 {
 	static AxisType AccelerometerInstance, GyroscopeInstance; 
@@ -412,17 +389,10 @@ void RemoteFinger_main( void )
 
 	att_server_register_packet_handler(packet_handler); // Register `packet_handler` function to receive ATT events, related to the management of ATT services and attributes
 
-	// Set one-shot timer for periodic task execution
-	heartbeat.process = &heartbeat_handler; // Set the `heartbeat_handler` function as the processing function for the timer
-	btstack_run_loop_set_timer(&heartbeat, HEARTBEAT_PERIOD_MS); // Set the timer period to `HEARTBEAT_PERIOD_MS` milliseconds
-	btstack_run_loop_add_timer(&heartbeat); // Add the timer to the run loop, ensuring it triggers periodically
-
 	// Power on Bluetooth functionality
 	hci_power_control(HCI_POWER_ON); // Enable Bluetooth communication, allowing the Raspberry Pi W to discover and connect to other Bluetooth devices
 
 	printf("Bluetooth configured! \n");
-
-	while(1); //dont start scheduler for now, BT doesnt seem to work correctly then
 
 	printf("Setting up the RTOS configuration... \n");
     /* Create the queue. */
@@ -438,7 +408,11 @@ void RemoteFinger_main( void )
 					BluetoothComms_TASK_PRIORITY, 	/* The priority assigned to the task. */
 					NULL );								/* The task handle is not required, so NULL is passed. */
 
-		xTaskCreate( AcquireSensorData_Task, "AcquireSensorData_Task", configMINIMAL_STACK_SIZE, NULL, AcquireSensorData_TASK_PRIORITY, NULL );
+		xTaskCreate( AcquireSensorData_Task, 
+					"AcquireSensorData_Task", 
+					configMINIMAL_STACK_SIZE, NULL, 
+					AcquireSensorData_TASK_PRIORITY, 
+					NULL );
 
 		/* Start the tasks and timer running. */
 		printf("RTOS configuration finished, starting the scheduler... \n");
@@ -457,6 +431,7 @@ void RemoteFinger_main( void )
 static void AcquireSensorData_Task()
 {
 	static bool pinState;
+	static uint32_t counter = 0;
 	TickType_t xTaskStartTime;
 	const TickType_t xTaskPeriod = pdMS_TO_TICKS(AcquireSensorData_TASK_PERIOD);
 
@@ -472,6 +447,16 @@ static void AcquireSensorData_Task()
 		cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, pinState);
 
 #ifdef i2c_default
+		
+		counter++;
+
+		// Update the temp every 10s
+		if (counter % 10 == 0) {
+			poll_temp();
+			if (le_notification_enabled) {
+				att_server_request_can_send_now_event(con_handle);
+			}
+		}
 		//static AxisType AccelerometerInstance, GyroscopeInstance; 
 		//static float Temperature;
 
