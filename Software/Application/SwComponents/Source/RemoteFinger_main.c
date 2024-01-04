@@ -512,7 +512,8 @@ static void BluetoothComms_Task()
 	}
 }
 
-
+// TODO - When removing the BluetoothComms_Task I've noticed Bluetooth stops working with BT_Receive.py - it doesn't connect
+//		  I've narrowed it down to the Queue - if you comment out xQueueReceive in that task, it stops working as well - figure out why
 
 
 
